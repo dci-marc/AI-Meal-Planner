@@ -17,6 +17,7 @@ import org.dci.aimealplanner.services.recipes.MealCategoryService;
 import org.dci.aimealplanner.services.recipes.RecipeService;
 import org.dci.aimealplanner.services.users.UserService;
 import org.dci.aimealplanner.services.utils.PdfService;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -31,6 +32,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 
 @Controller
@@ -47,9 +49,43 @@ public class RecipeController {
     private final PdfService pdfService;
 
     @GetMapping
-    public String showRecipes(Authentication authentication, Model model) {
-        List<Recipe> recipes = recipeService.findAll();
-        model.addAttribute("recipes", recipes);
+    public String showRecipes(@RequestParam(required = false) String title,
+                              @RequestParam(required = false) Integer preparationTime,
+                              @RequestParam(required = false) Difficulty difficulty,
+                              @RequestParam(required = false) Set<Long> ingredientIds,
+                              @RequestParam(required = false) Set<Long> categoryIds,
+                              @RequestParam(defaultValue = "0") int page,
+                              @RequestParam(defaultValue = "6") int size,
+                              Authentication authentication,
+                              Model model) {
+        Page<Recipe> recipesPage = recipeService.filterRecipes(title, categoryIds,
+                ingredientIds, preparationTime, difficulty, page, size);
+
+        model.addAttribute("recipesPage", recipesPage);
+        model.addAttribute("currentPage",page);
+        model.addAttribute("hasPrevious",recipesPage.hasPrevious());
+        model.addAttribute("hasNext",recipesPage.hasNext());
+        model.addAttribute("size",size);
+
+        if (title != null && !title.isBlank()) {
+            model.addAttribute("title", title);
+        }
+
+        if (ingredientIds != null && !ingredientIds.isEmpty()) {
+            model.addAttribute("ingredientIds", ingredientIds);
+        }
+
+        if (categoryIds != null && !categoryIds.isEmpty()) {
+            model.addAttribute("categoryIds", categoryIds);
+        }
+
+        if (preparationTime != null && preparationTime > 0) {
+            model.addAttribute("preparationTime", preparationTime);
+        }
+
+        if (difficulty != null) {
+            model.addAttribute("difficulty", difficulty);
+        }
 
         return "recipes/recipes_list";
     }
