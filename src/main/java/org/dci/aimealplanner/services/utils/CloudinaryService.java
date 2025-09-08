@@ -1,4 +1,4 @@
-package org.dci.aimealplanner.services.cloudinary;
+package org.dci.aimealplanner.services.utils;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;

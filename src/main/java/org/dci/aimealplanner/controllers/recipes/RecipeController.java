@@ -16,6 +16,11 @@ import org.dci.aimealplanner.services.ingredients.UnitService;
 import org.dci.aimealplanner.services.recipes.MealCategoryService;
 import org.dci.aimealplanner.services.recipes.RecipeService;
 import org.dci.aimealplanner.services.users.UserService;
+import org.dci.aimealplanner.services.utils.PdfService;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -38,6 +43,7 @@ public class RecipeController {
     private final IngredientUnitRatioService  ingredientUnitRatioService;
     private final IngredientCategoryService ingredientCategoryService;
     private final UserService userService;
+    private final PdfService pdfService;
 
     @GetMapping("/new")
     public String newRecipe(Authentication authentication,
@@ -126,6 +132,33 @@ public class RecipeController {
         return "recipes/recipe-details";
     }
 
+    @GetMapping("/delete/{id}")
+    public String deleteRecipe(@PathVariable Long id, Authentication authentication){
+        String email = AuthUtils.getUserEmail(authentication);
+        Recipe recipe = recipeService.findById(id);
+        if (recipe.getAuthorId() != null && recipe.getAuthorId().equals(userService.findByEmail(email).getId())) {
+            recipeService.deleteById(id);
+        }
+        return "redirect:/recipes/my-recipes";
+    }
+
+    @GetMapping(value = "/generate/{id}", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<byte[]> generatePdf(@PathVariable Long id) {
+        Recipe recipe = recipeService.findById(id);
+        User author = userService.findById(recipe.getAuthorId());
+        byte[] pdfBytes = pdfService.generatePdf(recipe, author);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentDisposition(
+                ContentDisposition.builder("attachment").filename(recipe.getTitle() + ".pdf")
+                        .build());
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdfBytes);
+    }
+
 
     private void prepareFormModel(Model model,
                                   String userEmail,
@@ -139,15 +172,7 @@ public class RecipeController {
         model.addAttribute("redirectUrl", redirectUrl);
     }
 
-    @GetMapping("/delete/{id}")
-    public String deleteRecipe(@PathVariable Long id, Authentication authentication){
-        String email = AuthUtils.getUserEmail(authentication);
-        Recipe recipe = recipeService.findById(id);
-        if (recipe.getAuthorId() != null && recipe.getAuthorId().equals(userService.findByEmail(email).getId())) {
-            recipeService.deleteById(id);
-        }
-        return "redirect:/recipes/my-recipes";
-    }
+
 
 
 }

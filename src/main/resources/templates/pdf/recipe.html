@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: darkgreen; }
+        ul { padding-left: 1.2em; }
+        img {
+            width: 400px;
+            height: auto;
+            object-fit: contain;
+            display: block;
+            margin: 15px 0;
+            border: 1px solid #ccc;
+        }
+        h3 {
+            color: #444;
+            margin-top: 20px;
+        }
+        p {
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+<h1 th:text="${recipe.title}">Recipe Title</h1>
+<p><strong>Author:</strong> <span th:text="${author.email}"></span></p>
+<p><strong>Difficulty:</strong> <span th:text="${#strings.toLowerCase(recipe.difficulty)}"></span></p>
+<p><strong>Preparation Time:</strong> <span th:text="${recipe.preparationTimeMinutes + ' min'}"></span></p>
+
+<img th:src="${recipe.image.imageUrl}" alt="Recipe image"/>
+
+<h3>Categories:</h3>
+<ul>
+    <li th:each="cat : ${recipe.mealCategories}"
+        th:text="${cat.name}">
+    </li>
+</ul>
+
+<h3>Ingredients:</h3>
+<ul>
+    <li th:each="recipeIngredient : ${recipe.ingredients}"
+        th:text="${recipeIngredient.amount + ' ' + recipeIngredient.unit.displayName + ' ' + recipeIngredient.ingredient.name}">
+        Ingredient
+    </li>
+</ul>
+
+<h3>Instructions</h3>
+<p th:text="${recipe.instructions}"></p>
+</body>
+</html>
