@@ -31,5 +31,13 @@ public class GlobalExceptionHandler {
 
     }
 
+    @ExceptionHandler(UserNotFoundException.class)
+    public String handleVerificationTokenInvalid(UserNotFoundException ex, Model model ){
+
+        model.addAttribute("errorMassage", ex.getMessage());
+        return "errors/404";
+
+    }
+
 
 }

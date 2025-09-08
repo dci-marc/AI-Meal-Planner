@@ -153,4 +153,7 @@ public class RecipeService {
     }
 
 
+    public void deleteById(Long id) {
+        recipeRepository.deleteById(id);
+    }
 }
