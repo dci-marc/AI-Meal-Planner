@@ -66,6 +66,8 @@ public class RecipeController {
         model.addAttribute("hasPrevious",recipesPage.hasPrevious());
         model.addAttribute("hasNext",recipesPage.hasNext());
         model.addAttribute("size",size);
+        model.addAttribute("categories", mealCategoryService.findAll());
+        model.addAttribute("ingredients", ingredientService.findAll());
 
         if (title != null && !title.isBlank()) {
             model.addAttribute("title", title);
