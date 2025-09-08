@@ -9,7 +9,7 @@ import org.dci.aimealplanner.entities.recipes.RecipeIngredient;
 import org.dci.aimealplanner.models.recipes.UpdateRecipeDTO;
 import org.dci.aimealplanner.repositories.recipes.RecipeIngredientRepository;
 import org.dci.aimealplanner.repositories.recipes.RecipeRepository;
-import org.dci.aimealplanner.services.cloudinary.CloudinaryService;
+import org.dci.aimealplanner.services.utils.CloudinaryService;
 import org.dci.aimealplanner.services.ingredients.IngredientService;
 import org.dci.aimealplanner.services.ingredients.UnitService;
 import org.dci.aimealplanner.services.users.UserService;
