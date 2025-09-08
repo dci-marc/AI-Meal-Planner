@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.entities.users.User;
 import org.dci.aimealplanner.exceptions.EmailAlreadyTaken;
 import org.dci.aimealplanner.exceptions.PasswordInvalid;
+import org.dci.aimealplanner.exceptions.UserNotFoundException;
 import org.dci.aimealplanner.exceptions.VerificationTokenInvalid;
 import org.dci.aimealplanner.models.Role;
 import org.dci.aimealplanner.models.UserType;
@@ -109,6 +110,10 @@ public class UserService implements UserDetailsService {
 
     public User findByEmail(String email) {
        return userRepository.findByEmail(email).orElseThrow(() -> new EmailAlreadyTaken(email));
+    }
+
+    public User findById(Long id) {
+        return userRepository.findById(id).orElseThrow(() -> new UserNotFoundException(id.toString() + " not found."));
     }
 
     public boolean emailIsNotTaken(String email) {

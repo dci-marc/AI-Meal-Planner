@@ -4,11 +4,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.controllers.auth.AuthUtils;
-import org.dci.aimealplanner.entities.ingredients.Ingredient;
-import org.dci.aimealplanner.entities.ingredients.Unit;
-import org.dci.aimealplanner.entities.recipes.MealCategory;
 import org.dci.aimealplanner.entities.recipes.Recipe;
-import org.dci.aimealplanner.entities.recipes.RecipeIngredient;
+import org.dci.aimealplanner.entities.users.User;
 import org.dci.aimealplanner.models.Difficulty;
 import org.dci.aimealplanner.models.recipes.RecipeDTO;
 import org.dci.aimealplanner.models.recipes.UpdateRecipeDTO;
@@ -28,7 +25,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Set;
 
 
 @Controller
@@ -108,6 +104,29 @@ public class RecipeController {
         return "redirect:/home/index";
     }
 
+    @GetMapping("/{id}")
+    public String showRecipeDetail(@PathVariable Long id,
+                                   Authentication authentication,
+                                   HttpServletRequest request,
+                                   Model model) {
+        Recipe recipe = recipeService.findById(id);
+        String email = AuthUtils.getUserEmail(authentication);
+        User loggedUser = userService.findByEmail(email);
+
+        if (recipe.getAuthorId() != null) {
+            User author = userService.findById(recipe.getAuthorId());
+            model.addAttribute("author", author);
+        }
+
+        model.addAttribute("recipe", RecipeDTO.from(recipe));
+        model.addAttribute("loggedInUser", loggedUser);
+        model.addAttribute("currentUserId", loggedUser.getId());
+        model.addAttribute("redirectUrl", request.getHeader("Referer"));
+
+        return "recipes/recipe-details";
+    }
+
+
     private void prepareFormModel(Model model,
                                   String userEmail,
                                   String redirectUrl) {
@@ -120,6 +139,15 @@ public class RecipeController {
         model.addAttribute("redirectUrl", redirectUrl);
     }
 
+    @GetMapping("/delete/{id}")
+    public String deleteRecipe(@PathVariable Long id, Authentication authentication){
+        String email = AuthUtils.getUserEmail(authentication);
+        Recipe recipe = recipeService.findById(id);
+        if (recipe.getAuthorId() != null && recipe.getAuthorId().equals(userService.findByEmail(email).getId())) {
+            recipeService.deleteById(id);
+        }
+        return "redirect:/recipes/my-recipes";
+    }
 
 
 }
