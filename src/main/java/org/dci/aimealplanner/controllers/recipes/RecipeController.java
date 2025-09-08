@@ -6,9 +6,12 @@ import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.controllers.auth.AuthUtils;
 import org.dci.aimealplanner.entities.ingredients.Ingredient;
 import org.dci.aimealplanner.entities.ingredients.Unit;
+import org.dci.aimealplanner.entities.recipes.MealCategory;
 import org.dci.aimealplanner.entities.recipes.Recipe;
 import org.dci.aimealplanner.entities.recipes.RecipeIngredient;
 import org.dci.aimealplanner.models.Difficulty;
+import org.dci.aimealplanner.models.recipes.RecipeDTO;
+import org.dci.aimealplanner.models.recipes.UpdateRecipeDTO;
 import org.dci.aimealplanner.services.ingredients.IngredientCategoryService;
 import org.dci.aimealplanner.services.ingredients.IngredientService;
 import org.dci.aimealplanner.services.ingredients.IngredientUnitRatioService;
@@ -22,6 +25,10 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 
 
 @Controller
@@ -42,12 +49,15 @@ public class RecipeController {
                             HttpServletRequest request) {
         String email = AuthUtils.getUserEmail(authentication);
         Recipe recipe = new Recipe();
-        prepareFormModel(model, email, recipe, request.getHeader("Referer"));
+        recipe.setIngredients(new ArrayList<>());
+        recipe.setMealCategories(new HashSet<>());
+        model.addAttribute("recipe", RecipeDTO.from(recipe));
+        prepareFormModel(model, email, request.getHeader("Referer"));
         return "recipes/recipe_form";
     }
 
     @PostMapping("/create")
-    public String createRecipe(@Valid @ModelAttribute("recipe") Recipe recipe,
+    public String createRecipe(@Valid @ModelAttribute("recipe") UpdateRecipeDTO updateRecipeDTO,
                                BindingResult bindingResult,
                                @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
                                Authentication authentication,
@@ -56,20 +66,52 @@ public class RecipeController {
         String email = AuthUtils.getUserEmail(authentication);
 
         if (bindingResult.hasErrors()) {
-            prepareFormModel(model, email, recipe, redirectUrl);
+            model.addAttribute("recipe", updateRecipeDTO);
+            prepareFormModel(model, email, redirectUrl);
             return "recipes/recipe_form";
         }
 
-        recipeService.addNewRecipe(recipe, imageFile, email);
+        recipeService.addNewRecipe(updateRecipeDTO, imageFile, email);
+        return "redirect:/home/index";
+    }
+
+    @GetMapping("/edit/{id}")
+    public String showEditForm(@PathVariable Long id,
+                               Authentication authentication,
+                               HttpServletRequest request,
+                               Model model) {
+        String email = AuthUtils.getUserEmail(authentication);
+        Recipe recipe = recipeService.findById(id);
+        RecipeDTO recipeDTO = RecipeDTO.from(recipe);
+        model.addAttribute("recipe", recipeDTO);
+
+        prepareFormModel(model, email, request.getHeader("Referer"));
+
+        return "recipes/recipe_form";
+    }
+
+    @PostMapping("/update/{id}")
+    public String updateRecipe(@PathVariable Long id, @Valid @ModelAttribute UpdateRecipeDTO updateRecipeDTO,
+                               BindingResult bindingResult,
+                               @RequestParam(required = false) MultipartFile imageFile,
+                               Authentication authentication,
+                               @RequestParam(value = "redirectUrl", required = false) String redirectUrl,
+                               Model model) {
+        String email = AuthUtils.getUserEmail(authentication);
+        if (bindingResult.hasErrors()) {
+            model.addAttribute("recipe", updateRecipeDTO);
+            prepareFormModel(model, email, redirectUrl);
+            return "recipes/recipe_form";
+        }
+
+        Recipe updated = recipeService.updateRecipe(id, updateRecipeDTO, imageFile, email);
         return "redirect:/home/index";
     }
 
     private void prepareFormModel(Model model,
                                   String userEmail,
-                                  Recipe recipe,
                                   String redirectUrl) {
         model.addAttribute("loggedInUser", userService.findByEmail(userEmail));
-        model.addAttribute("recipe", recipe);
         model.addAttribute("difficulties", Difficulty.values());
         model.addAttribute("categories", mealCategoryService.findAll());
         model.addAttribute("ingredientList", ingredientService.findAll());
@@ -77,5 +119,7 @@ public class RecipeController {
         model.addAttribute("ingredientCategories", ingredientCategoryService.findAll());
         model.addAttribute("redirectUrl", redirectUrl);
     }
+
+
 
 }
