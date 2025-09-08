@@ -17,6 +17,7 @@ import org.dci.aimealplanner.services.recipes.MealCategoryService;
 import org.dci.aimealplanner.services.recipes.RecipeService;
 import org.dci.aimealplanner.services.users.UserService;
 import org.dci.aimealplanner.services.utils.PdfService;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -30,6 +31,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 
 @Controller
@@ -44,6 +47,50 @@ public class RecipeController {
     private final IngredientCategoryService ingredientCategoryService;
     private final UserService userService;
     private final PdfService pdfService;
+
+    @GetMapping
+    public String showRecipes(@RequestParam(required = false) String title,
+                              @RequestParam(required = false) Integer preparationTime,
+                              @RequestParam(required = false) Difficulty difficulty,
+                              @RequestParam(required = false) Set<Long> ingredientIds,
+                              @RequestParam(required = false) Set<Long> categoryIds,
+                              @RequestParam(defaultValue = "0") int page,
+                              @RequestParam(defaultValue = "6") int size,
+                              Authentication authentication,
+                              Model model) {
+        Page<Recipe> recipesPage = recipeService.filterRecipes(title, categoryIds,
+                ingredientIds, preparationTime, difficulty, page, size);
+
+        model.addAttribute("recipesPage", recipesPage);
+        model.addAttribute("currentPage",page);
+        model.addAttribute("hasPrevious",recipesPage.hasPrevious());
+        model.addAttribute("hasNext",recipesPage.hasNext());
+        model.addAttribute("size",size);
+        model.addAttribute("categories", mealCategoryService.findAll());
+        model.addAttribute("ingredients", ingredientService.findAll());
+
+        if (title != null && !title.isBlank()) {
+            model.addAttribute("title", title);
+        }
+
+        if (ingredientIds != null && !ingredientIds.isEmpty()) {
+            model.addAttribute("ingredientIds", ingredientIds);
+        }
+
+        if (categoryIds != null && !categoryIds.isEmpty()) {
+            model.addAttribute("categoryIds", categoryIds);
+        }
+
+        if (preparationTime != null && preparationTime > 0) {
+            model.addAttribute("preparationTime", preparationTime);
+        }
+
+        if (difficulty != null) {
+            model.addAttribute("difficulty", difficulty);
+        }
+
+        return "recipes/recipes_list";
+    }
 
     @GetMapping("/new")
     public String newRecipe(Authentication authentication,
@@ -119,9 +166,8 @@ public class RecipeController {
         String email = AuthUtils.getUserEmail(authentication);
         User loggedUser = userService.findByEmail(email);
 
-        if (recipe.getAuthorId() != null) {
-            User author = userService.findById(recipe.getAuthorId());
-            model.addAttribute("author", author);
+        if (recipe.getAuthor() != null) {
+            model.addAttribute("author", recipe.getAuthor());
         }
 
         model.addAttribute("recipe", RecipeDTO.from(recipe));
@@ -136,7 +182,7 @@ public class RecipeController {
     public String deleteRecipe(@PathVariable Long id, Authentication authentication){
         String email = AuthUtils.getUserEmail(authentication);
         Recipe recipe = recipeService.findById(id);
-        if (recipe.getAuthorId() != null && recipe.getAuthorId().equals(userService.findByEmail(email).getId())) {
+        if (recipe.getAuthor() != null && recipe.getAuthor().getId().equals(userService.findByEmail(email).getId())) {
             recipeService.deleteById(id);
         }
         return "redirect:/recipes/my-recipes";
@@ -145,7 +191,7 @@ public class RecipeController {
     @GetMapping(value = "/generate/{id}", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> generatePdf(@PathVariable Long id) {
         Recipe recipe = recipeService.findById(id);
-        User author = userService.findById(recipe.getAuthorId());
+        User author = recipe.getAuthor();
         byte[] pdfBytes = pdfService.generatePdf(recipe, author);
 
         HttpHeaders headers = new HttpHeaders();

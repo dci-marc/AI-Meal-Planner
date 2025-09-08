@@ -6,6 +6,7 @@ import org.dci.aimealplanner.entities.ingredients.Ingredient;
 import org.dci.aimealplanner.entities.ingredients.Unit;
 import org.dci.aimealplanner.entities.recipes.Recipe;
 import org.dci.aimealplanner.entities.recipes.RecipeIngredient;
+import org.dci.aimealplanner.models.Difficulty;
 import org.dci.aimealplanner.models.recipes.UpdateRecipeDTO;
 import org.dci.aimealplanner.repositories.recipes.RecipeIngredientRepository;
 import org.dci.aimealplanner.repositories.recipes.RecipeRepository;
@@ -13,6 +14,12 @@ import org.dci.aimealplanner.services.utils.CloudinaryService;
 import org.dci.aimealplanner.services.ingredients.IngredientService;
 import org.dci.aimealplanner.services.ingredients.UnitService;
 import org.dci.aimealplanner.services.users.UserService;
+import org.dci.aimealplanner.specifications.RecipeSpecification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -149,11 +156,30 @@ public class RecipeService {
             imageMetaData.setPublicId(uploadedData.get("publicId"));
             recipe.setImage(imageMetaData);
         }
-        recipe.setAuthorId(userService.findByEmail(email).getId());
+        recipe.setAuthor(userService.findByEmail(email));
     }
 
 
     public void deleteById(Long id) {
         recipeRepository.deleteById(id);
+    }
+
+    public List<Recipe> findAll() {
+        return recipeRepository.findAll();
+    }
+
+    public Page<Recipe> filterRecipes(String title, Set<Long> categoryIds,
+                                      Set<Long> ingredientIds, Integer preparationTime,
+                                      Difficulty difficulty, int page, int size) {
+        Specification<Recipe> recipeSpecification = RecipeSpecification.byDifficulty(difficulty).and(
+                RecipeSpecification.byPreparationTimeLessThan(preparationTime).and(
+                        RecipeSpecification.byTitleContains(title).and(
+                                RecipeSpecification.byCategoryIds(categoryIds).and(
+                                        RecipeSpecification.byIngredientContains(ingredientIds)))));
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("title").ascending());
+
+        return recipeRepository.findAll(recipeSpecification, pageable);
+
     }
 }

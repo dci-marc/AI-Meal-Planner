@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.entities.ingredients.Ingredient;
 import org.dci.aimealplanner.entities.ingredients.IngredientUnitRatio;
 import org.dci.aimealplanner.entities.ingredients.Unit;
+import org.dci.aimealplanner.entities.recipes.Recipe;
 import org.dci.aimealplanner.entities.users.User;
 import org.dci.aimealplanner.integration.aiapi.GroqApiClient;
 import org.dci.aimealplanner.integration.aiapi.dtos.IngredientUnitFromAI;
@@ -14,23 +15,26 @@ import org.dci.aimealplanner.integration.foodapi.OpenFoodFactsClient;
 import org.dci.aimealplanner.integration.foodapi.dto.FoodItem;
 import org.dci.aimealplanner.models.Role;
 import org.dci.aimealplanner.models.UserType;
+import org.dci.aimealplanner.repositories.recipes.RecipeRepository;
 import org.dci.aimealplanner.services.ingredients.IngredientCategoryService;
 import org.dci.aimealplanner.services.ingredients.IngredientService;
 import org.dci.aimealplanner.services.ingredients.IngredientUnitRatioService;
 import org.dci.aimealplanner.services.ingredients.UnitService;
 import org.dci.aimealplanner.services.recipes.MealCategoryService;
 import org.dci.aimealplanner.services.users.UserService;
+import org.dci.aimealplanner.specifications.RecipeSpecification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -46,6 +50,8 @@ public class ApplicationSeeder implements ApplicationRunner {
     private final UnitService unitService;
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
+
+    private final RecipeRepository recipeRepository;
 
 
 
