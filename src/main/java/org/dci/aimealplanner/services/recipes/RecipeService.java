@@ -149,11 +149,15 @@ public class RecipeService {
             imageMetaData.setPublicId(uploadedData.get("publicId"));
             recipe.setImage(imageMetaData);
         }
-        recipe.setAuthorId(userService.findByEmail(email).getId());
+        recipe.setAuthor(userService.findByEmail(email));
     }
 
 
     public void deleteById(Long id) {
         recipeRepository.deleteById(id);
+    }
+
+    public List<Recipe> findAll() {
+        return recipeRepository.findAll();
     }
 }

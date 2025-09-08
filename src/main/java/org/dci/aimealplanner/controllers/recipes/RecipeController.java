@@ -30,6 +30,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 
 
 @Controller
@@ -44,6 +45,14 @@ public class RecipeController {
     private final IngredientCategoryService ingredientCategoryService;
     private final UserService userService;
     private final PdfService pdfService;
+
+    @GetMapping
+    public String showRecipes(Authentication authentication, Model model) {
+        List<Recipe> recipes = recipeService.findAll();
+        model.addAttribute("recipes", recipes);
+
+        return "recipes/recipes_list";
+    }
 
     @GetMapping("/new")
     public String newRecipe(Authentication authentication,
@@ -119,9 +128,8 @@ public class RecipeController {
         String email = AuthUtils.getUserEmail(authentication);
         User loggedUser = userService.findByEmail(email);
 
-        if (recipe.getAuthorId() != null) {
-            User author = userService.findById(recipe.getAuthorId());
-            model.addAttribute("author", author);
+        if (recipe.getAuthor() != null) {
+            model.addAttribute("author", recipe.getAuthor());
         }
 
         model.addAttribute("recipe", RecipeDTO.from(recipe));
@@ -136,7 +144,7 @@ public class RecipeController {
     public String deleteRecipe(@PathVariable Long id, Authentication authentication){
         String email = AuthUtils.getUserEmail(authentication);
         Recipe recipe = recipeService.findById(id);
-        if (recipe.getAuthorId() != null && recipe.getAuthorId().equals(userService.findByEmail(email).getId())) {
+        if (recipe.getAuthor() != null && recipe.getAuthor().getId().equals(userService.findByEmail(email).getId())) {
             recipeService.deleteById(id);
         }
         return "redirect:/recipes/my-recipes";
@@ -145,7 +153,7 @@ public class RecipeController {
     @GetMapping(value = "/generate/{id}", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> generatePdf(@PathVariable Long id) {
         Recipe recipe = recipeService.findById(id);
-        User author = userService.findById(recipe.getAuthorId());
+        User author = recipe.getAuthor();
         byte[] pdfBytes = pdfService.generatePdf(recipe, author);
 
         HttpHeaders headers = new HttpHeaders();
