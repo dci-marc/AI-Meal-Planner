@@ -10,9 +10,7 @@ import org.dci.aimealplanner.models.Difficulty;
 import org.dci.aimealplanner.models.recipes.RecipeDTO;
 import org.dci.aimealplanner.models.recipes.UpdateRecipeDTO;
 import org.dci.aimealplanner.services.ingredients.IngredientCategoryService;
-import org.dci.aimealplanner.services.ingredients.IngredientService;
 import org.dci.aimealplanner.services.ingredients.IngredientUnitRatioService;
-import org.dci.aimealplanner.services.ingredients.UnitService;
 import org.dci.aimealplanner.services.recipes.MealCategoryService;
 import org.dci.aimealplanner.services.recipes.RecipeService;
 import org.dci.aimealplanner.services.users.UserService;
@@ -31,7 +29,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 
@@ -41,8 +38,6 @@ import java.util.Set;
 public class RecipeController {
     private final RecipeService recipeService;
     private final MealCategoryService mealCategoryService;
-    private final IngredientService ingredientService;
-    private final UnitService  unitService;
     private final IngredientUnitRatioService  ingredientUnitRatioService;
     private final IngredientCategoryService ingredientCategoryService;
     private final UserService userService;
@@ -67,35 +62,18 @@ public class RecipeController {
         model.addAttribute("hasNext",recipesPage.hasNext());
         model.addAttribute("size",size);
         model.addAttribute("categories", mealCategoryService.findAll());
-        model.addAttribute("ingredients", ingredientService.findAll());
 
-        if (title != null && !title.isBlank()) {
-            model.addAttribute("title", title);
-        }
-
-        if (ingredientIds != null && !ingredientIds.isEmpty()) {
-            model.addAttribute("ingredientIds", ingredientIds);
-        }
-
-        if (categoryIds != null && !categoryIds.isEmpty()) {
-            model.addAttribute("categoryIds", categoryIds);
-        }
-
-        if (preparationTime != null && preparationTime > 0) {
-            model.addAttribute("preparationTime", preparationTime);
-        }
-
-        if (difficulty != null) {
-            model.addAttribute("difficulty", difficulty);
-        }
+        if (title != null && !title.isBlank()) model.addAttribute("title", title);
+        if (ingredientIds != null && !ingredientIds.isEmpty()) model.addAttribute("ingredientIds", ingredientIds);
+        if (categoryIds != null && !categoryIds.isEmpty()) model.addAttribute("categoryIds", categoryIds);
+        if (preparationTime != null && preparationTime > 0) model.addAttribute("preparationTime", preparationTime);
+        if (difficulty != null) model.addAttribute("difficulty", difficulty);
 
         return "recipes/recipes_list";
     }
 
     @GetMapping("/new")
-    public String newRecipe(Authentication authentication,
-                            Model model,
-                            HttpServletRequest request) {
+    public String newRecipe(Authentication authentication, Model model, HttpServletRequest request) {
         String email = AuthUtils.getUserEmail(authentication);
         Recipe recipe = new Recipe();
         recipe.setIngredients(new ArrayList<>());
@@ -135,7 +113,6 @@ public class RecipeController {
         model.addAttribute("recipe", recipeDTO);
 
         prepareFormModel(model, email, request.getHeader("Referer"));
-
         return "recipes/recipe_form";
     }
 
@@ -153,7 +130,7 @@ public class RecipeController {
             return "recipes/recipe_form";
         }
 
-        Recipe updated = recipeService.updateRecipe(id, updateRecipeDTO, imageFile, email);
+        recipeService.updateRecipe(id, updateRecipeDTO, imageFile, email);
         return "redirect:/home/index";
     }
 
@@ -166,9 +143,7 @@ public class RecipeController {
         String email = AuthUtils.getUserEmail(authentication);
         User loggedUser = userService.findByEmail(email);
 
-        if (recipe.getAuthor() != null) {
-            model.addAttribute("author", recipe.getAuthor());
-        }
+        if (recipe.getAuthor() != null) model.addAttribute("author", recipe.getAuthor());
 
         model.addAttribute("recipe", RecipeDTO.from(recipe));
         model.addAttribute("loggedInUser", loggedUser);
@@ -196,8 +171,7 @@ public class RecipeController {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentDisposition(
-                ContentDisposition.builder("attachment").filename(recipe.getTitle() + ".pdf")
-                        .build());
+                ContentDisposition.builder("attachment").filename(recipe.getTitle() + ".pdf").build());
 
         return ResponseEntity.ok()
                 .headers(headers)
@@ -205,19 +179,13 @@ public class RecipeController {
                 .body(pdfBytes);
     }
 
-
-    private void prepareFormModel(Model model,
-                                  String userEmail,
-                                  String redirectUrl) {
+    private void prepareFormModel(Model model, String userEmail, String redirectUrl) {
         model.addAttribute("loggedInUser", userService.findByEmail(userEmail));
         model.addAttribute("difficulties", Difficulty.values());
         model.addAttribute("categories", mealCategoryService.findAll());
-        model.addAttribute("ingredientList", ingredientService.findAll());
-        model.addAttribute("unitList", unitService.findAll());
         model.addAttribute("ingredientCategories", ingredientCategoryService.findAll());
         model.addAttribute("redirectUrl", redirectUrl);
     }
-
 
 
 

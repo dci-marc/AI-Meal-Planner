@@ -5,6 +5,13 @@
   <title th:text="${recipe.id == null ? 'Add Recipe' : 'Edit Recipe'}">Recipe</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    #ta-results-global{
+      position:fixed;z-index:5000;display:none;max-height:240px;overflow:auto;
+      background:#fff;border:1px solid rgba(0,0,0,.175);border-radius:.375rem;
+      box-shadow:0 8px 24px rgba(0,0,0,.12);
+    }
+  </style>
 </head>
 <body class="bg-light">
 <div class="container py-4">
@@ -31,15 +38,15 @@
           <option th:each="difficulty : ${difficulties}"
                   th:value="${difficulty}"
                   th:text="${#strings.toLowerCase(difficulty.name())}"
-                  th:selected="${recipe.difficulty != null and difficulty.name() == recipe.difficulty.name()}">
+                  th:selected="${recipe.difficulty != null && difficulty.name() == recipe.difficulty.name()}">
           </option>
         </select>
         <div class="text-danger" th:if="${#fields.hasErrors('difficulty')}" th:errors="*{difficulty}"></div>
       </div>
 
       <div class="col-md-4">
-        <label for="preparationTimeMinutes" class="form-label">Preparation Time (minutes)</label>
-        <input id="preparationTimeMinutes" type="number" th:field="*{preparationTimeMinutes}" class="form-control" min="1">
+        <label class="form-label">Preparation Time (minutes)</label>
+        <input type="number" th:field="*{preparationTimeMinutes}" class="form-control" min="1">
         <div class="text-danger" th:if="${#fields.hasErrors('preparationTimeMinutes')}" th:errors="*{preparationTimeMinutes}"></div>
       </div>
 
@@ -83,13 +90,11 @@
             <tr th:each="ri, iStat : *{ingredients}">
               <input type="hidden" th:field="*{ingredients[__${iStat.index}__].id}" />
               <td>
-                <select class="form-select ingredient-select" th:field="*{ingredients[__${iStat.index}__].ingredient.id}">
-                  <option value="">— choose —</option>
-                  <option th:each="ing : ${ingredientList}"
-                          th:value="${ing.id}"
-                          th:text="${ing.name}">
-                  </option>
-                </select>
+                <input type="hidden" th:field="*{ingredients[__${iStat.index}__].ingredient.id}">
+                <input class="form-control ingredient-search"
+                       th:value="${ri.ingredient != null ? ri.ingredient.name : ''}"
+                       th:attr="data-initial-ingredient=${ri.ingredient != null ? ri.ingredient.id : ''}"
+                       placeholder="Type to search…" autocomplete="off" autocapitalize="off" spellcheck="false">
               </td>
               <td>
                 <input type="number" min="0.001" step="0.001" class="form-control"
@@ -130,67 +135,116 @@
   </form>
 </div>
 
-<select id="ingredientMaster" class="d-none">
-  <option value="">— choose —</option>
-  <option th:each="ing : ${ingredientList}"
-          th:value="${ing.id}"
-          th:text="${ing.name}">
-  </option>
-</select>
+<div id="ta-results-global" class="list-group"></div>
 
-<div id="unit-templates" class="d-none">
-  <select th:each="ing : ${ingredientList}" th:attr="data-ingredient-id=${ing.id}">
-    <option value="">— none —</option>
-    <option th:each="ur : ${ing.unitRatios}"
-            th:value="${ur.unit.id}"
-            th:text="${ur.unit.displayName != null ? ur.unit.displayName : ur.unit.code}">
-    </option>
-  </select>
-</div>
+<script th:inline="javascript">
+  const API_ING = /*[[@{/api/ingredients}]]*/ '/api/ingredients';
+  const API_UNITS_BASE = /*[[@{/api/ingredients/0/units}]]*/ '/api/ingredients/0/units';
+  function unitsUrlFor(ingId){ return API_UNITS_BASE.replace('/0/','/'+ingId+'/'); }
 
-<script>
-  function nextIndex() {
-    return document.querySelectorAll('#ingredient-rows tr').length;
+  function nextIndex(){ return document.querySelectorAll('#ingredient-rows tr').length; }
+  async function fetchJson(url){
+    const r = await fetch(url, { headers: { 'Accept':'application/json' }});
+    if(!r.ok) throw new Error(r.status+' '+r.statusText);
+    return r.json();
   }
-
-  function getUnitTemplateHtml(ingredientId) {
-    const tpl = document.querySelector('#unit-templates select[data-ingredient-id="' + ingredientId + '"]');
-    return tpl ? tpl.innerHTML : '<option value="">— none —</option>';
-  }
-
-  function populateUnits(unitSelect, ingredientId, selectedUnitId) {
-    unitSelect.innerHTML = getUnitTemplateHtml(ingredientId || '');
-    if (selectedUnitId) {
-      unitSelect.value = String(selectedUnitId);
-      if (unitSelect.value !== String(selectedUnitId)) {
-        unitSelect.value = '';
+  async function loadUnits(selectEl, ingredientId, initialUnitId){
+    selectEl.innerHTML = '<option value="">— none —</option>';
+    if(!ingredientId) return;
+    try{
+      const units = await fetchJson(unitsUrlFor(ingredientId));
+      units.forEach(u=>{
+        const opt=document.createElement('option');
+        opt.value = u.id; opt.textContent = u.label; selectEl.appendChild(opt);
+      });
+      if(initialUnitId){
+        selectEl.value = String(initialUnitId);
+        if(selectEl.value !== String(initialUnitId)) selectEl.value = '';
       }
+    }catch(e){ console.error('Units fetch failed:', e); }
+  }
+
+  const panel = document.getElementById('ta-results-global');
+  let activeInput=null, activeHidden=null, activeUnitSelect=null, debounceTimer=null, abortCtrl=null;
+
+  function openPanelFor(input){
+    const rect = input.getBoundingClientRect();
+    panel.style.left = rect.left + 'px';
+    panel.style.top  = (rect.bottom + window.scrollY) + 'px';
+    panel.style.width= rect.width + 'px';
+    panel.style.display = 'block';
+  }
+  function closePanel(){ panel.style.display='none'; panel.innerHTML=''; }
+
+  async function searchIngredients(q){
+    if(q.length < 1){ closePanel(); return; }
+    if(abortCtrl) abortCtrl.abort();
+    abortCtrl = new AbortController();
+    try{
+      const r = await fetch(`${API_ING}?q=${encodeURIComponent(q)}&size=50`, { signal: abortCtrl.signal });
+      if(!r.ok){ console.error('Ingredient search failed:', r.status, r.statusText); closePanel(); return; }
+      const page = await r.json();
+      const list = page && page.content ? page.content : [];
+      panel.innerHTML = '';
+      if(list.length === 0){
+        const empty = document.createElement('div');
+        empty.className='list-group-item text-muted'; empty.textContent='No results';
+        panel.appendChild(empty);
+      }else{
+        list.forEach(it=>{
+          const btn=document.createElement('button');
+          btn.type='button'; btn.className='list-group-item list-group-item-action'; btn.textContent=it.name;
+          btn.addEventListener('pointerdown', async (e)=>{
+            e.preventDefault();
+            if(!activeInput || !activeHidden) return;
+            activeHidden.value = it.id;
+            activeInput.value  = it.name;
+            closePanel();
+            if(activeUnitSelect) await loadUnits(activeUnitSelect, it.id, null);
+            activeInput.focus();
+          });
+          panel.appendChild(btn);
+        });
+      }
+      if(activeInput) openPanelFor(activeInput);
+    }catch(e){
+      if(e.name !== 'AbortError') console.error('Ingredient search error:', e);
+      closePanel();
     }
   }
 
-  function wireRow(row) {
-    const ingSel = row.querySelector('.ingredient-select');
-    const unitSel = row.querySelector('.unit-select');
+  function wireRow(tr){
+    const input    = tr.querySelector('.ingredient-search');
+    const hiddenId = tr.querySelector('input[type="hidden"][name$=".ingredient.id"]');
+    const unitSel  = tr.querySelector('.unit-select');
 
-    const initialUnit = unitSel.getAttribute('data-initial-unit') || '';
-    populateUnits(unitSel, ingSel.value, initialUnit);
+    const initIng  = input.getAttribute('data-initial-ingredient') || '';
+    const initUnit = unitSel.getAttribute('data-initial-unit') || '';
+    if(initIng) loadUnits(unitSel, initIng, initUnit);
 
-    ingSel.addEventListener('change', () => {
-      populateUnits(unitSel, ingSel.value, null);
+    input.addEventListener('focus', ()=>{
+      activeInput=input; activeHidden=hiddenId; activeUnitSelect=unitSel;
+      if(input.value.trim().length >= 1){
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(()=>searchIngredients(input.value.trim()), 120);
+      }
+    });
+    input.addEventListener('input', ()=>{
+      activeInput=input; activeHidden=hiddenId; activeUnitSelect=unitSel;
+      clearTimeout(debounceTimer);
+      const q = input.value.trim();
+      debounceTimer = setTimeout(()=>searchIngredients(q), 120);
     });
   }
 
-  function addRow() {
+  function addRow(){
     const i = nextIndex();
-    const ingOpts = document.getElementById('ingredientMaster').innerHTML;
-
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <input type="hidden" name="ingredients[${i}].id" value="">
       <td>
-        <select class="form-select ingredient-select" name="ingredients[${i}].ingredient.id">
-          ${ingOpts}
-        </select>
+        <input type="hidden" name="ingredients[${i}].ingredient.id" value="">
+        <input class="form-control ingredient-search" placeholder="Type to search…" autocomplete="off" autocapitalize="off" spellcheck="false" data-initial-ingredient="">
       </td>
       <td>
         <input type="number" min="0.001" step="0.001" class="form-control"
@@ -209,20 +263,29 @@
     wireRow(tr);
   }
 
-  function removeRow(btn) {
-    const tr = btn.closest('tr');
-    if (tr) tr.remove();
-
-    const rows = document.querySelectorAll('#ingredient-rows tr');
-    rows.forEach((row, idx) => {
-      row.querySelectorAll('select, input').forEach(el => {
-        el.name = el.name.replace(/ingredients\[\d+]/, 'ingredients[' + idx + ']');
+  function removeRow(btn){
+    const tr = btn.closest('tr'); if(tr) tr.remove();
+    document.querySelectorAll('#ingredient-rows tr').forEach((row, idx)=>{
+      row.querySelectorAll('select, input').forEach(el=>{
+        el.name = el.name.replace(/ingredients\[\d+]/, 'ingredients['+idx+']');
       });
     });
+    closePanel();
   }
 
-  document.addEventListener('DOMContentLoaded', function () {
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter' && document.activeElement && document.activeElement.classList.contains('ingredient-search')){
+      e.preventDefault();
+    }
+  });
+
+  document.addEventListener('click', (e)=>{ if(panel.style.display==='block' && !panel.contains(e.target) && e.target !== activeInput) closePanel(); });
+  window.addEventListener('scroll', ()=>{ if(panel.style.display==='block' && activeInput) openPanelFor(activeInput); }, true);
+  window.addEventListener('resize', ()=>{ if(panel.style.display==='block' && activeInput) openPanelFor(activeInput); });
+
+  document.addEventListener('DOMContentLoaded', ()=>{
     document.querySelectorAll('#ingredient-rows tr').forEach(wireRow);
+    if(document.querySelectorAll('#ingredient-rows tr').length === 0) addRow();
   });
 </script>
 
