@@ -7,6 +7,7 @@ import org.dci.aimealplanner.controllers.auth.AuthUtils;
 import org.dci.aimealplanner.entities.recipes.Recipe;
 import org.dci.aimealplanner.entities.users.User;
 import org.dci.aimealplanner.integration.aiapi.GroqApiClient;
+import org.dci.aimealplanner.integration.aiapi.dtos.recipes.RecipeFromAI;
 import org.dci.aimealplanner.models.Difficulty;
 import org.dci.aimealplanner.models.recipes.RecipeDTO;
 import org.dci.aimealplanner.models.recipes.UpdateRecipeDTO;
@@ -190,7 +191,18 @@ public class RecipeController {
 
     @PostMapping("/generate")
     public String generate(@RequestParam String prompt, Authentication authentication, Model model) {
-        return "recipes/generate";
+        String email = AuthUtils.getUserEmail(authentication);
+        model.addAttribute("loggedInUser", userService.findByEmail(email));
+
+        try {
+            RecipeFromAI aiRecipe = groqApiClient.generateRecipeFromPrompt(prompt);
+            model.addAttribute("aiRecipe", aiRecipe);
+
+            return "recipes/generate";
+        } catch (Exception e) {
+            model.addAttribute("error", "Sorry, I couldn't generate a recipe. " + e.getMessage());
+            return "recipes/ask_ai";
+        }
     }
 
     private void prepareFormModel(Model model, String userEmail, String redirectUrl) {
