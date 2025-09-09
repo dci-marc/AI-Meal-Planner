@@ -8,4 +8,5 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class UserInformationService {
     private final UserInformationRepository userInformationRepository;
+
 }
