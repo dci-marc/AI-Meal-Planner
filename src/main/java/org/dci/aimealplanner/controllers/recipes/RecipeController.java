@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.controllers.auth.AuthUtils;
 import org.dci.aimealplanner.entities.recipes.Recipe;
 import org.dci.aimealplanner.entities.users.User;
+import org.dci.aimealplanner.integration.aiapi.GroqApiClient;
 import org.dci.aimealplanner.models.Difficulty;
 import org.dci.aimealplanner.models.recipes.RecipeDTO;
 import org.dci.aimealplanner.models.recipes.UpdateRecipeDTO;
@@ -42,6 +43,7 @@ public class RecipeController {
     private final IngredientCategoryService ingredientCategoryService;
     private final UserService userService;
     private final PdfService pdfService;
+    private final GroqApiClient groqApiClient;
 
     @GetMapping
     public String showRecipes(@RequestParam(required = false) String title,
@@ -179,6 +181,18 @@ public class RecipeController {
                 .body(pdfBytes);
     }
 
+    @GetMapping("/ask-ai")
+    public String askAi(Authentication authentication, Model model) {
+        String email = AuthUtils.getUserEmail(authentication);
+        model.addAttribute("loggedInUser", userService.findByEmail(email));
+        return "recipes/ask_ai";
+    }
+
+    @PostMapping("/generate")
+    public String generate(@RequestParam String prompt, Authentication authentication, Model model) {
+        return "recipes/generate";
+    }
+
     private void prepareFormModel(Model model, String userEmail, String redirectUrl) {
         model.addAttribute("loggedInUser", userService.findByEmail(userEmail));
         model.addAttribute("difficulties", Difficulty.values());
@@ -186,7 +200,5 @@ public class RecipeController {
         model.addAttribute("ingredientCategories", ingredientCategoryService.findAll());
         model.addAttribute("redirectUrl", redirectUrl);
     }
-
-
 
 }
