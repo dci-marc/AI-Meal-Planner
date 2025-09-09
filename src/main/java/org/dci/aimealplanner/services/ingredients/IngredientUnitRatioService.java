@@ -33,4 +33,8 @@ public class IngredientUnitRatioService {
     public List<IngredientUnitRatio> findByIngredient(Ingredient ingredient) {
         return ingredientUnitRatioRepository.findByIngredient(ingredient);
     }
+
+    public List<IngredientUnitRatio> findByIngredientId(Long id) {
+        return ingredientUnitRatioRepository.findByIngredientId(id);
+    }
 }

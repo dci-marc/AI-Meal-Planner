@@ -62,22 +62,22 @@ public class RecipeSpecification {
     }
 
     public static Specification<Recipe> byIngredientContains(Set<Long> ingredientIds) {
-        return (root, query, criteriaBuilder) -> {
-            if (ingredientIds == null || ingredientIds.isEmpty()) {
-                return null;
-            }
-            Subquery<Long> subquery = query.subquery(Long.class);
-            Root<Recipe> root2 = subquery.from(Recipe.class);
+        return (root, query, cb) -> {
+            if (ingredientIds == null || ingredientIds.isEmpty()) return null;
 
-            Join<Recipe, RecipeIngredient> recipeIngredients = root2.join("recipeIngredients", JoinType.INNER);
-            Join<RecipeIngredient, Ingredient> rIIJoin = recipeIngredients.join("ingredient", JoinType.INNER);
+            Subquery<Long> sub = query.subquery(Long.class);
+            Root<Recipe> r2 = sub.from(Recipe.class);
 
-            subquery.select(criteriaBuilder.countDistinct(rIIJoin.get("id")))
-                    .where(
-                            criteriaBuilder.equal(root2.get("id"), root.get("id")),
-                            rIIJoin.get("id").in(ingredientIds)
-                    );
-            return criteriaBuilder.equal(subquery, (long) ingredientIds.size());
+            Join<Recipe, RecipeIngredient> ri = r2.join("ingredients", JoinType.INNER);
+            Join<RecipeIngredient, Ingredient> ingJoin = ri.join("ingredient", JoinType.INNER);
+
+            sub.select(cb.countDistinct(ingJoin.get("id")));
+            sub.where(
+                    cb.equal(r2.get("id"), root.get("id")),
+                    ingJoin.get("id").in(ingredientIds)
+            );
+
+            return cb.equal(sub, (long) ingredientIds.size());
         };
     }
 
