@@ -94,35 +94,36 @@ public class GroqApiClient {
 
     private String buildRecipePrompt(String userPrompt) {
         return """
-            TASK:
-            Create a single cooking recipe that best matches this user request:
-            "%s"
-            
-            RULES:
-            - Output STRICT JSON ONLY (no comments, no markdown).
-            - Keep ingredient names simple and commonly used (e.g., "chicken breast", "onion").
-            - Use only these unit codes for ingredients: ["g","ml","piece","tbsp","tsp","cup"].
-            - Difficulty must be one of: "EASY","MEDIUM","HARD".
-            - preparation_time_minutes is total active prep + cook time (integer).
-            - servings is a number (can be decimal).
-            - meal_categories: a small list of category names (e.g., ["Dinner","Vegetarian"]) — omit if unknown.
-            - ingredients.amount MUST be a number (no ranges, no strings like "to taste"); if optional, set amount to 0 and add a note.
-            - instructions: concise, step-by-step strings (no numbering characters in the text; we will number them in UI).
-            - If the user mentions dietary constraints (e.g., vegan, halal, gluten-free), respect them.
-            - If the user lists ingredients, prioritize using them and keep pantry items minimal (oil, salt, pepper, common spices).
-            
-            JSON SHAPE:
-            {
-              "title": "string",
-              "difficulty": "EASY|MEDIUM|HARD",
-              "preparation_time_minutes":  integer,
-              "servings": number,
-              "meal_categories": ["string", ...],
-              "ingredients": [
-                { "name": "string", "amount": number, "unit_code": "g|ml|piece|tbsp|tsp|cup", "note": "string or null" }
-              ],
-              "instructions": ["string", ...]
-            }
-            """.formatted(userPrompt);
+        TASK:
+        Create a single cooking recipe that best matches this user request:
+        "%s"
+        
+        RULES:
+        - Output STRICT JSON ONLY (no comments, no markdown).
+        - Keep ingredient names simple and commonly used (e.g., "chicken breast", "onion").
+        - Use only these unit codes for ingredients: ["g","ml","piece","tbsp","tsp","cup"].
+        - Difficulty must be one of: "EASY","MEDIUM","HARD".
+        - preparation_time_minutes is total active prep + cook time (integer).
+        - servings is a number (can be decimal).
+        - meal_categories: provide a small list of category names (e.g., ["Dinner","Vegetarian"]).
+          If unsure, set it to ["Unknown"] (exactly this casing).
+        - ingredients.amount MUST be a number (no ranges, no strings like "to taste"); if optional, set amount to 0 and add a note.
+        - instructions: concise, step-by-step strings (no numbering characters in the text; we will number them in UI).
+        - If the user mentions dietary constraints (e.g., vegan, halal, gluten-free), respect them.
+        - If the user lists ingredients, prioritize using them and keep pantry items minimal (oil, salt, pepper, common spices).
+        
+        JSON SHAPE:
+        {
+          "title": "string",
+          "difficulty": "EASY|MEDIUM|HARD",
+          "preparation_time_minutes":  integer,
+          "servings": number,
+          "meal_categories": ["string", ...],
+          "ingredients": [
+            { "name": "string", "amount": number, "unit_code": "g|ml|piece|tbsp|tsp|cup", "note": "string or null" }
+          ],
+          "instructions": ["string", ...]
+        }
+        """.formatted(userPrompt);
     }
 }
