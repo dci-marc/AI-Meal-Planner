@@ -21,12 +21,12 @@
             <p>
                 <strong>Difficulty:</strong> <span th:text="${aiRecipe.difficulty}"></span><br>
                 <strong>Preparation Time:</strong>
-                <span th:text="${aiRecipe.preparation_time_minutes}"></span> minutes<br>
+                <span th:text="${aiRecipe.preparationTimeMinutes}"></span> minutes<br>
                 <strong>Servings:</strong> <span th:text="${aiRecipe.servings}"></span><br>
                 <strong>Categories:</strong>
-                <span th:each="cat,iter : ${aiRecipe.meal_categories}"
-                      th:text="${cat}"
-                      th:append="${!iter.last ? ', ' : ''}"></span>
+                <span th:each="cat,iter : ${aiRecipe.mealCategories}">
+                    <span th:text="${!iter.first ? ', ' : ''} + ${cat}"></span>
+                </span>
             </p>
         </div>
     </div>
@@ -36,7 +36,7 @@
         <li class="list-group-item"
             th:each="ing : ${aiRecipe.ingredients}">
             <span th:text="${ing.amount}"></span>
-            <span th:text="${ing.unit_code}"></span>
+            <span th:text="${ing.unitCode}"></span>
             <span th:text="${ing.name}"></span>
             <span class="text-muted" th:if="${ing.note != null}"
                   th:text="'(' + ${ing.note} + ')'"></span>
@@ -50,16 +50,42 @@
             th:text="${step}"></li>
     </ol>
 
-    <!-- Save form -->
-    <form th:action="@{/recipes/save-ai}" method="post">
-        <input type="hidden" name="title" th:value="${aiRecipe.title}"/>
-        <input type="hidden" name="difficulty" th:value="${aiRecipe.difficulty}"/>
-        <input type="hidden" name="preparation_time_minutes"
-               th:value="${aiRecipe.preparation_time_minutes}"/>
-        <input type="hidden" name="servings" th:value="${aiRecipe.servings}"/>
-        <input type="hidden" name="meal_categories"
-               th:value="${#strings.arrayJoin(aiRecipe.meal_categories, ',')}"/>
-        <!-- You could also serialize ingredients + instructions as JSON in hidden fields -->
+    <form th:action="@{/recipes/save-ai}" method="post" th:object="${aiRecipe}">
+        <input type="hidden" th:field="*{title}"/>
+        <input type="hidden" th:field="*{difficulty}"/>
+        <input type="hidden" th:field="*{preparationTimeMinutes}"/>
+        <input type="hidden" th:field="*{servings}"/>
+
+        <th:block th:if="*{mealCategories} != null"
+                  th:each="cat, iStat : *{mealCategories}">
+            <input type="hidden"
+                   th:field="*{mealCategories[__${iStat.index}__]}"
+                   th:value="${cat}"/>
+        </th:block>
+
+        <th:block th:if="*{ingredients} != null"
+                  th:each="ing, iStat : *{ingredients}">
+            <input type="hidden"
+                   th:name="${'ingredients[' + iStat.index + '].name'}"
+                   th:value="${ing.name}"/>
+            <input type="hidden"
+                   th:name="${'ingredients[' + iStat.index + '].unitCode'}"
+                   th:value="${ing.unitCode}"/>
+            <input type="hidden"
+                   th:name="${'ingredients[' + iStat.index + '].amount'}"
+                   th:value="${ing.amount}"/>
+            <input type="hidden"
+                   th:name="${'ingredients[' + iStat.index + '].note'}"
+                   th:value="${ing.note}"/>
+        </th:block>
+
+        <th:block th:if="*{instructions} != null"
+                  th:each="step, iStat : *{instructions}">
+            <input type="hidden"
+                   th:name="${'instructions[' + iStat.index + ']'}"
+                   th:value="${step}"/>
+        </th:block>
+
         <button class="btn btn-success">Save Recipe</button>
         <a th:href="@{/recipes/ask-ai}" class="btn btn-secondary">Back</a>
     </form>

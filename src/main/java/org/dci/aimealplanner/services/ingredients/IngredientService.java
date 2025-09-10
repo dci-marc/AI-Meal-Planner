@@ -31,7 +31,7 @@ public class IngredientService {
     public Ingredient upsertFromUsda(String requestedName, FoodItem foodItem) {
         String name = normalize(requestedName);
 
-        Ingredient ingredient = ingredientRepository.findByNameIgnoreCase(name).orElseGet(() -> {
+        Ingredient ingredient = ingredientRepository.findByNameIgnoreCaseLike(name).orElseGet(() -> {
                     Ingredient ing = new Ingredient();
                     ing.setName(name);
                     return ing;

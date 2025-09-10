@@ -61,7 +61,7 @@ public class Recipe {
     @Enumerated(EnumType.STRING)
     private SourceType sourceType;
 
-    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "author_id", nullable = true)
     private User author;
 

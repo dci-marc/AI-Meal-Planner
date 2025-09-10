@@ -4,12 +4,16 @@ import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.entities.ImageMetaData;
 import org.dci.aimealplanner.entities.ingredients.Ingredient;
 import org.dci.aimealplanner.entities.ingredients.Unit;
+import org.dci.aimealplanner.entities.recipes.MealCategory;
 import org.dci.aimealplanner.entities.recipes.Recipe;
 import org.dci.aimealplanner.entities.recipes.RecipeIngredient;
+import org.dci.aimealplanner.integration.aiapi.dtos.recipes.RecipeFromAI;
 import org.dci.aimealplanner.models.Difficulty;
+import org.dci.aimealplanner.models.SourceType;
 import org.dci.aimealplanner.models.recipes.UpdateRecipeDTO;
 import org.dci.aimealplanner.repositories.recipes.RecipeIngredientRepository;
 import org.dci.aimealplanner.repositories.recipes.RecipeRepository;
+import org.dci.aimealplanner.services.ingredients.IngredientLookupService;
 import org.dci.aimealplanner.services.utils.CloudinaryService;
 import org.dci.aimealplanner.services.ingredients.IngredientService;
 import org.dci.aimealplanner.services.ingredients.UnitService;
@@ -37,6 +41,8 @@ public class RecipeService {
     private final UnitService unitService;
     private final IngredientService ingredientService;
     private final RecipeIngredientRepository recipeIngredientRepository;
+    private final IngredientLookupService lookup;
+    private final MealCategoryService mealCategoryService;
 
     @Transactional
     public Recipe addNewRecipe(UpdateRecipeDTO recipeDTO, MultipartFile imageFile, String email) {
@@ -180,6 +186,30 @@ public class RecipeService {
         Pageable pageable = PageRequest.of(page, size, Sort.by("title").ascending());
 
         return recipeRepository.findAll(recipeSpecification, pageable);
-
     }
+
+    @Transactional
+    public Recipe saveFromAI(RecipeFromAI recipeFromAI, String email) {
+        Recipe recipe = recipeFromAI.toRecipeSkeleton();
+        recipe.setIngredients(new ArrayList<>()); // ensure non-null
+
+        for (var line : recipeFromAI.getIngredients()) {
+            RecipeIngredient ri = line.toRecipeIngredient(lookup);
+            ri.setRecipe(recipe);
+            recipe.getIngredients().add(ri);
+        }
+
+        if (recipeFromAI.getMealCategories() != null) {
+            for (String catName : recipeFromAI.getMealCategories()) {
+                MealCategory category = mealCategoryService.findByName(catName);
+                recipe.getMealCategories().add(category);
+            }
+        }
+
+        recipe.setAuthor(userService.findByEmail(email));
+        recipe.setSourceType(SourceType.AI);
+
+        return recipeRepository.save(recipe);
+    }
+
 }

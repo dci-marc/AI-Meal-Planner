@@ -19,4 +19,9 @@ public class MealCategoryService {
     public List<MealCategory> findAll() {
         return mealCategoryRepository.findAll();
     }
+
+    public MealCategory findByName(String catName) {
+        return mealCategoryRepository.findByNameIgnoreCaseLike(catName)
+                .orElseThrow(() -> new RuntimeException("Can't find meal category with name " + catName));
+    }
 }
