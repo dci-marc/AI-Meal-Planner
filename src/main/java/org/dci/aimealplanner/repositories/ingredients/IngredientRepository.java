@@ -32,7 +32,6 @@ public interface IngredientRepository extends JpaRepository<Ingredient, Long> {
     """)
     Page<IngredientSummary> smartSearch(@Param("q") String q, Pageable pageable);
 
-    // smart fuzzy with ordering (exact → startsWith → endsWith → contains; then shortest name)
     @Query("""
         select i
         from ingredients i

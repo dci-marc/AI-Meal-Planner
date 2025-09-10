@@ -3,6 +3,7 @@ package org.dci.aimealplanner.services.ingredients;
 import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.entities.ingredients.Ingredient;
 import org.dci.aimealplanner.entities.ingredients.IngredientUnitRatio;
+import org.dci.aimealplanner.entities.ingredients.Unit;
 import org.dci.aimealplanner.repositories.ingredients.IngredientUnitRatioRepository;
 import org.springframework.stereotype.Service;
 
@@ -36,5 +37,10 @@ public class IngredientUnitRatioService {
 
     public List<IngredientUnitRatio> findByIngredientId(Long id) {
         return ingredientUnitRatioRepository.findByIngredientId(id);
+    }
+
+    public IngredientUnitRatio findRatio(Ingredient ingredient, Unit unit) {
+        return ingredientUnitRatioRepository.findByIngredientAndUnit(ingredient, unit)
+                .orElseThrow(() -> new RuntimeException("Ratio not found"));
     }
 }

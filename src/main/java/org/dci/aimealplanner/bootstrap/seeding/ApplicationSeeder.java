@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.entities.ingredients.Ingredient;
 import org.dci.aimealplanner.entities.ingredients.IngredientUnitRatio;
 import org.dci.aimealplanner.entities.ingredients.Unit;
+import org.dci.aimealplanner.entities.recipes.Recipe;
 import org.dci.aimealplanner.entities.users.User;
 import org.dci.aimealplanner.integration.aiapi.GroqApiClient;
 import org.dci.aimealplanner.integration.aiapi.dtos.ingredients.IngredientUnitFromAI;
@@ -20,6 +21,7 @@ import org.dci.aimealplanner.services.ingredients.IngredientService;
 import org.dci.aimealplanner.services.ingredients.IngredientUnitRatioService;
 import org.dci.aimealplanner.services.ingredients.UnitService;
 import org.dci.aimealplanner.services.recipes.MealCategoryService;
+import org.dci.aimealplanner.services.recipes.RecipeService;
 import org.dci.aimealplanner.services.users.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +50,7 @@ public class ApplicationSeeder implements ApplicationRunner {
     private final PasswordEncoder passwordEncoder;
 
     private final RecipeRepository recipeRepository;
-
+    private final RecipeService recipeService;
 
 
     @Override
@@ -57,8 +59,6 @@ public class ApplicationSeeder implements ApplicationRunner {
         // seedMealCategory();
         //retrieveUnits();
         //addAnAdmin();
-        System.out.println(mealCategoryService.findAll().stream().map(mealCategory -> mealCategory.getName()).toList());
-
     }
 
     private void addAnAdmin() {

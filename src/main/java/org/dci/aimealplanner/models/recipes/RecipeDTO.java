@@ -20,6 +20,7 @@ public record RecipeDTO(
         String instructions,
         List<RecipeIngredient> ingredients,
         Set<MealCategory> mealCategories
+
 ) {
     public static RecipeDTO from(Recipe recipe) {
         return new RecipeDTO(recipe.getId(),recipe.getTitle(), recipe.getDifficulty(), recipe.getPreparationTimeMinutes(), recipe.getServings(),
