@@ -8,5 +8,5 @@ import java.util.Optional;
 
 @Repository
 public interface MealCategoryRepository extends JpaRepository<MealCategory, Long> {
-    Optional<MealCategory> findByNameIgnoreCase(String name);
+    Optional<MealCategory> findByNameIgnoreCaseLike(String name);
 }

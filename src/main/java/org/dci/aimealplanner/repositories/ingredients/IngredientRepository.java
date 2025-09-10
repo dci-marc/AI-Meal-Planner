@@ -15,8 +15,9 @@ import java.util.Optional;
 @Repository
 public interface IngredientRepository extends JpaRepository<Ingredient, Long> {
     Optional<Ingredient> findByName(String name);
-    Optional<Ingredient> findByNameIgnoreCase(String name);
+    Optional<Ingredient> findByNameIgnoreCaseLike(String name);
     List<IngredientSummary> findByIdIn(Collection<Long> ids);
+    List<Ingredient> findTop10ByNameContainingIgnoreCaseOrderByNameAsc(String q);
 
     @Query("""
         select i.id as id, i.name as name
@@ -30,4 +31,20 @@ public interface IngredientRepository extends JpaRepository<Ingredient, Long> {
           i.name asc
     """)
     Page<IngredientSummary> smartSearch(@Param("q") String q, Pageable pageable);
+
+    // smart fuzzy with ordering (exact → startsWith → endsWith → contains; then shortest name)
+    @Query("""
+        select i
+        from ingredients i
+        where lower(i.name) like lower(concat('%', :q, '%'))
+        order by 
+          case 
+            when lower(i.name) = lower(:q) then 0
+            when lower(i.name) like lower(concat(:q, '%')) then 1
+            when lower(i.name) like lower(concat('%', :q)) then 2
+            else 3
+          end,
+          length(i.name) asc
+        """)
+    List<Ingredient> searchByNameFuzzy(@org.springframework.data.repository.query.Param("q") String q);
 }

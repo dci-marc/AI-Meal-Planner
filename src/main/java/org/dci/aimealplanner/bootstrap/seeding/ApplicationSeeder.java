@@ -30,6 +30,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
@@ -56,6 +57,8 @@ public class ApplicationSeeder implements ApplicationRunner {
         // seedMealCategory();
         //retrieveUnits();
         //addAnAdmin();
+        System.out.println(mealCategoryService.findAll().stream().map(mealCategory -> mealCategory.getName()).toList());
+
     }
 
     private void addAnAdmin() {
@@ -136,5 +139,34 @@ public class ApplicationSeeder implements ApplicationRunner {
 
     public void seedMealCategory() {
         mealCategoryService.addAll(openFoodFactsClient.getOffCategories().toMealCategories());
+    }
+
+    private List<String> getDbIngredientNames() {
+        return ingredientService.findAll().stream()
+                .map(ing -> ing.getName().trim().toLowerCase())
+                .toList();
+    }
+
+    private List<String> findMissingIngredients(List<String> candidates) {
+        Set<String> existing = new java.util.HashSet<>(getDbIngredientNames());
+        return candidates.stream()
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .filter(s -> !existing.contains(s.toLowerCase()))
+                .toList();
+    }
+
+    private void seedOneIfMissing(String name) {
+        if (ingredientService.exists(name)) return;
+        var apiIngredient = foodApiClient.searchFood(name);
+        if (apiIngredient.isPresent() && apiIngredient.get().allNutritionFactsAvailable()) {
+            ingredientService.upsertFromUsda(name, apiIngredient.get());
+        }
+    }
+
+    private void seedNames(List<String> names) {
+        for (String n : names) {
+            seedOneIfMissing(n);
+        }
     }
 }

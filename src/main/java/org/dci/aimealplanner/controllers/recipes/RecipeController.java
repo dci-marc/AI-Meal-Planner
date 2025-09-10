@@ -213,4 +213,14 @@ public class RecipeController {
         model.addAttribute("redirectUrl", redirectUrl);
     }
 
+    @PostMapping("/save-ai")
+    public String saveAi(@ModelAttribute RecipeFromAI aiRecipe,
+                         Authentication authentication) {
+        String email = AuthUtils.getUserEmail(authentication);
+        Recipe recipe = recipeService.saveFromAI(aiRecipe, email);
+
+        return "redirect:/recipes/" +  recipe.getId();
+
+    }
+
 }
