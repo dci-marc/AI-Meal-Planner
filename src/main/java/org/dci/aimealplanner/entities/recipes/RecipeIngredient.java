@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.dci.aimealplanner.entities.ingredients.Ingredient;
+import org.dci.aimealplanner.entities.ingredients.NutritionFact;
 import org.dci.aimealplanner.entities.ingredients.Unit;
 
 import java.math.BigDecimal;
