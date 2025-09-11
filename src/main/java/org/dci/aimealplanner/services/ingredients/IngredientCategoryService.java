@@ -80,4 +80,14 @@ public class IngredientCategoryService {
     public List<IngredientCategory> findAll() {
         return ingredientCategoryRepository.findAll();
     }
+
+    public IngredientCategory findOrCreateByName(String category) {
+        if (ingredientCategoryRepository.findByNameIgnoreCase(category).isPresent()) {
+            return ingredientCategoryRepository.findByNameIgnoreCase(category).get();
+        } else  {
+            IngredientCategory ingredientCategory = new IngredientCategory();
+            ingredientCategory.setName(category);
+            return ingredientCategoryRepository.save(ingredientCategory);
+        }
+    }
 }

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.integration.aiapi.dtos.ingredients.AiResponse;
+import org.dci.aimealplanner.integration.aiapi.dtos.ingredients.IngredientFromAI;
 import org.dci.aimealplanner.integration.aiapi.dtos.ingredients.IngredientUnitFromAI;
 import org.dci.aimealplanner.integration.aiapi.dtos.recipes.RecipeFromAI;
 import org.springframework.stereotype.Component;
@@ -125,5 +126,88 @@ public class GroqApiClient {
           "instructions": ["string", ...]
         }
         """.formatted(userPrompt);
+    }
+
+    public IngredientFromAI generateIngredient(String userInput) {
+        String prompt = buildIngredientPrompt(userInput);
+
+        Map<String, Object> body = Map.of(
+                "model", "llama-3.3-70b-versatile",
+                "messages", List.of(
+                        Map.of("role", "system", "content",
+                                "You are a culinary data assistant. Return ONLY strict JSON. No code fences, no markdown, no explanations."),
+                        Map.of("role", "user", "content", prompt)
+                ),
+                "temperature", 0.1
+        );
+
+        AiResponse response = groqRestClient.post()
+                .uri("chat/completions")
+                .body(body)
+                .retrieve()
+                .body(AiResponse.class);
+
+        String json = response.getChoices().get(0).getMessage().getContent();
+        try {
+            return objectMapper.readValue(json, IngredientFromAI.class);
+        } catch (JsonProcessingException e) {
+            // Surface the raw JSON to help diagnose bad model output during development.
+            throw new IllegalStateException("Failed to parse AI ingredient JSON: " + json, e);
+        }
+    }
+
+    private String buildIngredientPrompt(String ingredientName) {
+        return """
+    ROLE:
+    You are a culinary data assistant. Return ONLY strict JSON. No code fences, no markdown, no commentary.
+
+    GOAL:
+    Produce a concise, factual profile for the ingredient named: "%s".
+
+    RULES:
+    - Output MUST be valid JSON (UTF-8), with NO trailing commas, NO comments, NO additional fields.
+    - Use dot as decimal separator. Use numbers for quantities (not strings).
+    - Keep names simple and commonly used (e.g., "mozzarella", "olive oil").
+    - Nutrition is PER 100g (even for liquids; use typical density assumptions when needed).
+    - Units list must ONLY use these codes: ["g","ml","piece","tbsp","tsp","cup"].
+    - Ratios convert ONE non-gram unit to grams (toUnitCode is always "g").
+    - Include only units/ratios that make sense for the ingredient; omit the rest.
+    - If something is reasonably unknown, omit that item rather than guessing wildly.
+
+    CATEGORY SUGGESTION (pick the simplest that fits):
+    "Dairy","Meat","Fish & Seafood","Vegetables","Fruits","Grains & Cereals",
+    "Legumes","Nuts & Seeds","Oils & Fats","Herbs & Spices","Condiments",
+    "Beverages","Sweeteners","Other"
+
+    JSON SHAPE (strict):
+    {
+      "name": "string",
+      "category": "string",
+      "nutrition": {
+        "kcal": number,
+        "protein": number,  // grams per 100g
+        "carbs": number,    // grams per 100g
+        "fat": number,      // grams per 100g
+        "fiber": number,    // grams per 100g
+        "sugar": number     // grams per 100g
+      },
+      "units": [
+        { "code": "g|ml|piece|tbsp|tsp|cup", "display": "string or null" }
+      ],
+      "ratios": [
+        { "fromUnitCode": "ml|piece|tbsp|tsp|cup", "toUnitCode": "g", "factor": number }
+      ]
+    }
+
+    NOTES:
+    - "units" are the common measurement units a cook would use for this ingredient.
+    - Each "ratios" entry means: 1 <fromUnitCode> = <factor> g.
+    - For liquids like oils: include tbsp/tsp and/or ml with realistic grams-per-unit.
+    - For items commonly counted (e.g., eggs, limes), "piece" may be appropriate with an average grams-per-piece ratio.
+    - Do NOT include an entry for "g" in "ratios" (since it already is grams).
+
+    INGREDIENT:
+    "%s"
+    """.formatted(ingredientName, ingredientName);
     }
 }

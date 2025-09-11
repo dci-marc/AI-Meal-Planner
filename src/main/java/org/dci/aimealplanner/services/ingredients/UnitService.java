@@ -1,12 +1,12 @@
 package org.dci.aimealplanner.services.ingredients;
 
 import lombok.RequiredArgsConstructor;
+import org.dci.aimealplanner.entities.ingredients.Ingredient;
 import org.dci.aimealplanner.entities.ingredients.Unit;
 import org.dci.aimealplanner.repositories.ingredients.UnitRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -28,4 +28,11 @@ public class UnitService {
     public Unit findById(Long id) {
         return unitRepository.findById(id).orElseThrow(() -> new RuntimeException("Unit with id " + id + " not found"));
     }
+
+    public Map<String, Unit> ensureUnitsByCode(LinkedHashSet<String> unitCodes) {
+        Map<String, Unit> unitsByCode = new LinkedHashMap<String, Unit>();
+        unitCodes.forEach(unitCode -> {unitRepository.findByCodeIgnoreCase(unitCode).ifPresent(unit -> unitsByCode.put(unitCode, unit));});
+        return unitsByCode;
+    }
+
 }
