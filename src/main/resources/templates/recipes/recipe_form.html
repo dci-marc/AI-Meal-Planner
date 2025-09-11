@@ -157,7 +157,14 @@
 <script th:inline="javascript">
   const API_ING = /*[[@{/api/ingredients}]]*/ '/api/ingredients';
   const API_UNITS_BASE = /*[[@{/api/ingredients/0/units}]]*/ '/api/ingredients/0/units';
+  const NEW_ING_AI = /*[[@{/ingredients/new-ai}]]*/ '/ingredients/new-ai';
+
   function unitsUrlFor(ingId){ return API_UNITS_BASE.replace('/0/','/'+ingId+'/'); }
+  function aiUrlFor(name){
+    // Use RELATIVE return path so backend sanitizer keeps it
+    const ret = window.location.pathname + window.location.search + window.location.hash;
+    return `${NEW_ING_AI}?name=${encodeURIComponent(name)}&return=${encodeURIComponent(ret)}`;
+  }
 
   function nextIndex(){ return document.querySelectorAll('#ingredient-rows tr').length; }
   async function fetchJson(url){
@@ -205,12 +212,28 @@
       panel.innerHTML = '';
       if(list.length === 0){
         const empty = document.createElement('div');
-        empty.className='list-group-item text-muted'; empty.textContent='No results';
+        empty.className='list-group-item text-muted';
+        empty.textContent='No results';
         panel.appendChild(empty);
+
+        const add = document.createElement('button');
+        add.type='button';
+        add.className='list-group-item list-group-item-action';
+        add.style.fontWeight='600';
+        add.textContent = `Add "${q}" via AI`;
+        add.dataset.aiAdd='true';
+        add.addEventListener('pointerdown', (e)=>{
+          e.preventDefault();
+          try{ sessionStorage.setItem('recipe:lastIngredientQuery', q); }catch(_){}
+          window.location.href = aiUrlFor(q);
+        });
+        panel.appendChild(add);
       }else{
         list.forEach(it=>{
           const btn=document.createElement('button');
-          btn.type='button'; btn.className='list-group-item list-group-item-action'; btn.textContent=it.name;
+          btn.type='button';
+          btn.className='list-group-item list-group-item-action';
+          btn.textContent=it.name;
           btn.addEventListener('pointerdown', async (e)=>{
             e.preventDefault();
             if(!activeInput || !activeHidden) return;
@@ -222,6 +245,17 @@
           });
           panel.appendChild(btn);
         });
+
+        const footer = document.createElement('button');
+        footer.type='button';
+        footer.className='list-group-item list-group-item-action';
+        footer.textContent = `Can’t find it? Add "${q}" via AI`;
+        footer.addEventListener('pointerdown', (e)=>{
+          e.preventDefault();
+          try{ sessionStorage.setItem('recipe:lastIngredientQuery', q); }catch(_){}
+          window.location.href = aiUrlFor(q);
+        });
+        panel.appendChild(footer);
       }
       if(activeInput) openPanelFor(activeInput);
     }catch(e){
@@ -291,8 +325,19 @@
   }
 
   document.addEventListener('keydown', (e)=>{
-    if(e.key === 'Enter' && document.activeElement && document.activeElement.classList.contains('ingredient-search')){
+    const isIngInput = document.activeElement && document.activeElement.classList.contains('ingredient-search');
+    if(!isIngInput) return;
+
+    if(e.key === 'Enter'){
       e.preventDefault();
+      if(panel.style.display === 'block'){
+        const aiBtn = panel.querySelector('[data-ai-add="true"]');
+        if(aiBtn){
+          try{ sessionStorage.setItem('recipe:lastIngredientQuery', document.activeElement.value.trim()); }catch(_){}
+          aiBtn.click();
+          return;
+        }
+      }
     }
   });
 
@@ -300,10 +345,130 @@
   window.addEventListener('scroll', ()=>{ if(panel.style.display==='block' && activeInput) openPanelFor(activeInput); }, true);
   window.addEventListener('resize', ()=>{ if(panel.style.display==='block' && activeInput) openPanelFor(activeInput); });
 
-  document.addEventListener('DOMContentLoaded', ()=>{
+  document.addEventListener('DOMContentLoaded', async ()=>{
+    // wire existing rows
     document.querySelectorAll('#ingredient-rows tr').forEach(wireRow);
     if(document.querySelectorAll('#ingredient-rows tr').length === 0) addRow();
+
+    // --- restore draft (autosave) ---
+    await (async function restoreDraft(){
+      const KEY = 'recipe:draft:' + location.pathname;
+      const form = document.querySelector('form.card');
+      if(!form) return;
+      const raw = sessionStorage.getItem(KEY);
+      if(!raw) return;
+      let data; try{ data = JSON.parse(raw); } catch { return; }
+
+      // fields
+      const setVal = (sel, v)=>{ const el=form.querySelector(sel); if(el!=null && v!=null){ el.value=v; } };
+      setVal('[name="title"]', data.title);
+      const diffEl = form.querySelector('#difficulty'); if(diffEl && data.difficulty!=null) diffEl.value = data.difficulty;
+      setVal('[name="preparationTimeMinutes"]', data.prep);
+      setVal('[name="servings"]', data.servings);
+      const categoriesSel = form.querySelector('[name="mealCategories"]');
+      if (categoriesSel && Array.isArray(data.categories)) {
+        const set = new Set(data.categories.map(String));
+        Array.from(categoriesSel.options).forEach(opt => opt.selected = set.has(String(opt.value)));
+      }
+      const instrEl = form.querySelector('[name="instructions"]'); if(instrEl && data.instructions!=null) instrEl.value = data.instructions;
+
+      // ingredients
+      const want = Array.isArray(data.ingredients) ? data.ingredients.length : 0;
+      while (document.querySelectorAll('#ingredient-rows tr').length < want) addRow();
+
+      const rows = Array.from(document.querySelectorAll('#ingredient-rows tr'));
+      for (let i=0; i<want; i++){
+        const tr = rows[i], rec = data.ingredients[i] || {};
+        const nameInput = tr.querySelector('.ingredient-search');
+        const idHidden  = tr.querySelector('input[type="hidden"][name$=".ingredient.id"]');
+        const amount    = tr.querySelector('input[name$=".amount"]');
+        const unitSel   = tr.querySelector('select[name$=".unit.id"]');
+
+        if (nameInput && rec.text!=null) nameInput.value = rec.text;
+        if (idHidden  && rec.id!=null)   idHidden.value  = rec.id;
+        if (amount    && rec.amount!=null) amount.value = rec.amount;
+        if (unitSel) {
+          if (rec.id) {
+            try { await loadUnits(unitSel, rec.id, rec.unitId || ''); }
+            catch(e){ console.warn('restore units failed:', e); }
+          } else if (rec.unitId!=null) {
+            unitSel.value = rec.unitId;
+          }
+        }
+      }
+    })();
+
+    // --- apply createdIngredient (from AI return) ---
+    (async function applyCreated(){
+      const params = new URLSearchParams(location.search);
+      const createdId = params.get('createdIngredient');
+      if(!createdId) return;
+
+      // Try to drop it where the user last typed
+      let target = null;
+      const lastQuery = sessionStorage.getItem('recipe:lastIngredientQuery');
+      if (lastQuery) {
+        target = Array.from(document.querySelectorAll('#ingredient-rows tr')).find(tr=>{
+          const v = tr.querySelector('.ingredient-search')?.value || '';
+          return v.trim().toLowerCase() === lastQuery.trim().toLowerCase();
+        });
+      }
+      if (!target) {
+        target = Array.from(document.querySelectorAll('#ingredient-rows tr')).find(tr=>{
+          const hid = tr.querySelector('input[type="hidden"][name$=".ingredient.id"]');
+          return hid && !hid.value;
+        }) || null;
+      }
+      if (!target) {
+        addRow();
+        target = document.querySelector('#ingredient-rows tr:last-child');
+      }
+
+      const hid = target.querySelector('input[type="hidden"][name$=".ingredient.id"]');
+      const unitSel = target.querySelector('.unit-select');
+      if (hid) hid.value = createdId;
+      if (unitSel) {
+        try { await loadUnits(unitSel, createdId, null); } catch(e){ console.warn('units after create:', e); }
+      }
+      try{ sessionStorage.removeItem('recipe:lastIngredientQuery'); }catch(_){}
+    })();
   });
+
+  // --- simple autosave (snapshot) ---
+  (function autosave(){
+    const KEY = 'recipe:draft:' + location.pathname;
+    const form = document.querySelector('form.card');
+    if(!form) return;
+    function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+    function snapshot(){
+      const categoriesSel = form.querySelector('[name="mealCategories"]');
+      const data = {
+        title: form.querySelector('[name="title"]')?.value ?? '',
+        difficulty: form.querySelector('#difficulty')?.value ?? '',
+        prep: form.querySelector('[name="preparationTimeMinutes"]')?.value ?? '',
+        servings: form.querySelector('[name="servings"]')?.value ?? '',
+        categories: categoriesSel ? Array.from(categoriesSel.selectedOptions).map(o=>o.value) : [],
+        instructions: form.querySelector('[name="instructions"]')?.value ?? '',
+        ingredients: Array.from(document.querySelectorAll('#ingredient-rows tr')).map(tr=>{
+          const nameInput = tr.querySelector('.ingredient-search');
+          const idHidden  = tr.querySelector('input[type="hidden"][name$=".ingredient.id"]');
+          const amount    = tr.querySelector('input[name$=".amount"]');
+          const unitSel   = tr.querySelector('select[name$=".unit.id"]');
+          return {
+            text: nameInput?.value ?? '',
+            id: idHidden?.value ?? '',
+            amount: amount?.value ?? '',
+            unitId: unitSel?.value ?? ''
+          };
+        })
+      };
+      try { sessionStorage.setItem(KEY, JSON.stringify(data)); } catch(_) {}
+    }
+    const saveNow = debounce(snapshot, 200);
+    form.addEventListener('input', saveNow);
+    window.addEventListener('beforeunload', snapshot);
+    form.addEventListener('submit', ()=>{ try{ sessionStorage.removeItem(KEY); }catch(_){} });
+  })();
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

@@ -1,9 +1,12 @@
 package org.dci.aimealplanner.services.ingredients;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.dci.aimealplanner.entities.ingredients.Ingredient;
-import org.dci.aimealplanner.entities.ingredients.NutritionFact;
+import org.dci.aimealplanner.entities.ingredients.*;
+import org.dci.aimealplanner.integration.aiapi.GroqApiClient;
+import org.dci.aimealplanner.integration.aiapi.dtos.ingredients.IngredientFromAI;
 import org.dci.aimealplanner.integration.foodapi.dto.FoodItem;
 import org.dci.aimealplanner.repositories.ingredients.IngredientRepository;
 import org.dci.aimealplanner.repositories.ingredients.IngredientSummary;
@@ -11,9 +14,9 @@ import org.dci.aimealplanner.repositories.ingredients.NutritionFactRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -65,4 +68,35 @@ public class IngredientService {
     public List<IngredientSummary> findByIdIn(List<Long> ids) {
         return ingredientRepository.findByIdIn(ids);
     }
+
+    public String normalizeName(String raw) {
+        if (raw == null) return "";
+        String s = raw.trim().replaceAll("\\s+", " ").toLowerCase();
+        return s;
+    }
+
+    public Optional<Ingredient> findByNameIgnoreCase(String name) {
+        if (name == null || name.isBlank()) return Optional.empty();
+        String collapsed = name.trim().replaceAll("\\s+", " ");
+        return ingredientRepository.findFirstByNameIgnoreCase(collapsed);
+    }
+
+    public boolean existsByNameIgnoreCase(String name) {
+        return findByNameIgnoreCase(name).isPresent();
+    }
+
+    public Ingredient createWithNutrition(String name, IngredientCategory category, Double kCal, Double protein, Double carbs, Double fat, Double fiber, Double sugar) {
+        Ingredient ingredient = new Ingredient();
+        ingredient.setName(name);
+        ingredient.setCategory(category);
+        NutritionFact nutritionFact = new NutritionFact();
+        nutritionFact.setKcal(kCal);
+        nutritionFact.setProtein(protein);
+        nutritionFact.setCarbs(carbs);
+        nutritionFact.setFiber(fiber);
+        nutritionFact.setSugar(sugar);
+        ingredient.setNutritionFact(nutritionFact);
+        return ingredientRepository.save(ingredient);
+    }
+
 }

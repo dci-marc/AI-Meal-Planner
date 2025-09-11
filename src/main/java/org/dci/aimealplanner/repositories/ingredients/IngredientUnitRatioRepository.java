@@ -16,4 +16,7 @@ public interface IngredientUnitRatioRepository extends JpaRepository<IngredientU
     List<IngredientUnitRatio> findByIngredientIdIn(List<Long> ingredientIds);
     List<IngredientUnitRatio> findByIngredientId(Long  ingredientId);
     Optional<IngredientUnitRatio> findByIngredientAndUnit(Ingredient ingredient, Unit unit);
+
+    Optional<IngredientUnitRatio> findFirstByIngredientIdAndUnitId(Long ingredientId, Long unitId);
+    boolean existsByIngredientIdAndUnitId(Long ingredientId, Long unitId);
 }

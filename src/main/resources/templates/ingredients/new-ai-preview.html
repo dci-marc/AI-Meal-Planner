@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Add Ingredient via AI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    <style>
+        :root{ --accent:#0d6efd; --ring:rgba(13,110,253,.25); --card:#fff; --muted:#6c757d; }
+        body{background:linear-gradient(180deg,#f7f9fc 0%,#f1f3f5 100%);}
+        .card{border-radius:.75rem;border:1px solid #e5e7eb;background:var(--card);}
+        .btn{border-radius:.5rem;font-weight:500;}
+        .kv dt{color:var(--muted); width: 180px;}
+        code{padding:.125rem .375rem; border-radius:.25rem; background:#f8f9fa;}
+    </style>
+</head>
+<body class="bg-light">
+<div class="container py-4">
+
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h2 class="mb-0">Add Ingredient via AI</h2>
+        <a class="btn btn-outline-secondary btn-sm" th:href="${returnUrl}">Back</a>
+    </div>
+
+    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+
+    <div th:if="${dup}" class="alert alert-warning">
+        <div>
+            The ingredient "<span class="fw-semibold" th:text="${name}"></span>" already exists
+            <span th:if="${existingName}">
+        as "<span class="fw-semibold" th:text="${existingName}"></span>"
+      </span>.
+        </div>
+        <div class="mt-2 d-flex gap-2">
+            <a class="btn btn-primary btn-sm" th:href="${returnUrl}">Back to recipe</a>
+            <a class="btn btn-outline-secondary btn-sm"
+               th:if="${existingId}" th:href="@{/ingredients/{id}(id=${existingId})}">
+                View ingredient
+            </a>
+        </div>
+    </div>
+
+    <div th:if="${ai != null}" class="card shadow-sm">
+        <div class="card-body" th:with="n=${ai.nutrition}">
+            <h4 class="mb-3" th:text="${ai.name}">Ingredient name</h4>
+
+            <dl class="row kv">
+                <dt class="col-sm-3">Suggested category</dt>
+                <dd class="col-sm-9" th:text="${ai.category != null ? ai.category : '—'}">—</dd>
+
+                <dt class="col-sm-3">Nutrition (per 100g)</dt>
+                <dd class="col-sm-9">
+                    <div class="row gy-1">
+                        <div class="col-auto me-3"
+                             th:text="${(n != null and n.kcal    != null) ? 'kcal: '   + n.kcal    : 'kcal: —'}"></div>
+                        <div class="col-auto me-3"
+                             th:text="${(n != null and n.protein != null) ? 'protein: ' + n.protein + ' g' : 'protein: —'}"></div>
+                        <div class="col-auto me-3"
+                             th:text="${(n != null and n.carbs   != null) ? 'carbs: '   + n.carbs   + ' g' : 'carbs: —'}"></div>
+                        <div class="col-auto me-3"
+                             th:text="${(n != null and n.fat     != null) ? 'fat: '     + n.fat     + ' g' : 'fat: —'}"></div>
+                        <div class="col-auto me-3"
+                             th:text="${(n != null and n.fiber   != null) ? 'fiber: '   + n.fiber   + ' g' : 'fiber: —'}"></div>
+                        <div class="col-auto"
+                             th:text="${(n != null and n.sugar   != null) ? 'sugar: '   + n.sugar   + ' g' : 'sugar: —'}"></div>
+                    </div>
+                </dd>
+
+                <dt class="col-sm-3">Units</dt>
+                <dd class="col-sm-9">
+                    <!-- Prefer explicit units, else derive from ratios -->
+                    <div th:if="${ai.units != null and !#lists.isEmpty(ai.units)}">
+                        <span th:each="u : ${ai.units}" class="badge text-bg-light me-2" th:text="${u.code}">unit</span>
+                    </div>
+                    <div th:if="${ai.units == null or #lists.isEmpty(ai.units)}">
+                        <span th:if="${ai.ratios == null or #lists.isEmpty(ai.ratios)}">—</span>
+                        <span th:each="r : ${ai.ratios}" class="badge text-bg-light me-2" th:text="${r.fromUnitCode}">unit</span>
+                    </div>
+                </dd>
+
+                <dt class="col-sm-3">Common ratios</dt>
+                <dd class="col-sm-9">
+                    <div th:if="${ai.ratios == null or #lists.isEmpty(ai.ratios)}">—</div>
+                    <div th:each="r : ${ai.ratios}">
+                        <code th:text="${'1 ' + r.fromUnitCode + ' = ' + r.factor + ' ' + r.toUnitCode}">1 tbsp = 14 g</code>
+                    </div>
+                </dd>
+            </dl>
+
+            <div class="mt-3 d-flex gap-2">
+                <form th:action="@{/ingredients/new-ai/save}" method="post" class="d-inline">
+                    <!-- CSRF (renders if Spring Security exposes _csrf) -->
+                    <input th:if="${_csrf}" type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <input type="hidden" name="returnUrl" th:value="${returnUrl}"/>
+                    <input type="hidden" name="payload"   th:value="${aiJson}"/>
+                    <button type="submit" class="btn btn-primary">Use this ingredient</button>
+                </form>
+                <a class="btn btn-secondary" th:href="${returnUrl}">Cancel</a>
+            </div>
+        </div>
+    </div>
+
+    <div th:if="${ai == null and error == null and dup == null}" class="alert alert-info mt-3">
+        No preview available yet.
+    </div>
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

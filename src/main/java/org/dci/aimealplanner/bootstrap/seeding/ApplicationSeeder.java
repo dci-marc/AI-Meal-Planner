@@ -39,18 +39,13 @@ import java.util.Set;
 public class ApplicationSeeder implements ApplicationRunner {
     private static final Logger log = LoggerFactory.getLogger(ApplicationSeeder.class);
     private final FoodApiClient foodApiClient;
-    private final OpenFoodFactsClient openFoodFactsClient;
     private final GroqApiClient  groqApiClient;
     private final IngredientService ingredientService;
-    private final IngredientCategoryService ingredientCategoryService;
-    private final MealCategoryService mealCategoryService;
     private final IngredientUnitRatioService ingredientUnitRatioService;
     private final UnitService unitService;
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
 
-    private final RecipeRepository recipeRepository;
-    private final RecipeService recipeService;
 
 
     @Override
@@ -137,36 +132,4 @@ public class ApplicationSeeder implements ApplicationRunner {
         }
     }
 
-    public void seedMealCategory() {
-        mealCategoryService.addAll(openFoodFactsClient.getOffCategories().toMealCategories());
-    }
-
-    private List<String> getDbIngredientNames() {
-        return ingredientService.findAll().stream()
-                .map(ing -> ing.getName().trim().toLowerCase())
-                .toList();
-    }
-
-    private List<String> findMissingIngredients(List<String> candidates) {
-        Set<String> existing = new java.util.HashSet<>(getDbIngredientNames());
-        return candidates.stream()
-                .map(String::trim)
-                .filter(s -> !s.isBlank())
-                .filter(s -> !existing.contains(s.toLowerCase()))
-                .toList();
-    }
-
-    private void seedOneIfMissing(String name) {
-        if (ingredientService.exists(name)) return;
-        var apiIngredient = foodApiClient.searchFood(name);
-        if (apiIngredient.isPresent() && apiIngredient.get().allNutritionFactsAvailable()) {
-            ingredientService.upsertFromUsda(name, apiIngredient.get());
-        }
-    }
-
-    private void seedNames(List<String> names) {
-        for (String n : names) {
-            seedOneIfMissing(n);
-        }
-    }
 }
