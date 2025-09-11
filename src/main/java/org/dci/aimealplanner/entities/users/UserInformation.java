@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.dci.aimealplanner.models.ActivityLevel;
 import org.dci.aimealplanner.models.Goal;
-import org.dci.aimealplanner.models.Sex;
+import org.dci.aimealplanner.models.Gender;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -31,7 +31,7 @@ public class UserInformation {
     private LocalDate birthDate;
 
     @Enumerated(EnumType.STRING)
-    private Sex gender;
+    private Gender gender;
 
     private Integer heightCm;
     private BigDecimal weightKg;

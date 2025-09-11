@@ -10,6 +10,7 @@ import org.dci.aimealplanner.integration.aiapi.GroqApiClient;
 import org.dci.aimealplanner.integration.aiapi.dtos.recipes.RecipeFromAI;
 import org.dci.aimealplanner.models.Difficulty;
 import org.dci.aimealplanner.models.recipes.RecipeDTO;
+import org.dci.aimealplanner.models.recipes.RecipeViewDTO;
 import org.dci.aimealplanner.models.recipes.UpdateRecipeDTO;
 import org.dci.aimealplanner.services.ingredients.IngredientCategoryService;
 import org.dci.aimealplanner.services.ingredients.IngredientUnitRatioService;
@@ -134,7 +135,7 @@ public class RecipeController {
         }
 
         recipeService.updateRecipe(id, updateRecipeDTO, imageFile, email);
-        return "redirect:/home/index";
+        return "redirect:/recipes";
     }
 
     @GetMapping("/{id}")
@@ -148,7 +149,7 @@ public class RecipeController {
 
         if (recipe.getAuthor() != null) model.addAttribute("author", recipe.getAuthor());
 
-        model.addAttribute("recipe", RecipeDTO.from(recipe));
+        model.addAttribute("recipe", RecipeViewDTO.from(recipe));
         model.addAttribute("loggedInUser", loggedUser);
         model.addAttribute("currentUserId", loggedUser.getId());
         model.addAttribute("redirectUrl", request.getHeader("Referer"));
