@@ -1,6 +1,7 @@
 package org.dci.aimealplanner.models;
 
-public enum Sex {
+public enum Gender {
     MALE,
-    FEMALE
+    FEMALE,
+    OTHER
 }
