@@ -34,14 +34,13 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
-
 @Controller
 @RequiredArgsConstructor
 @RequestMapping("/recipes")
 public class RecipeController {
     private final RecipeService recipeService;
     private final MealCategoryService mealCategoryService;
-    private final IngredientUnitRatioService  ingredientUnitRatioService;
+    private final IngredientUnitRatioService ingredientUnitRatioService;
     private final IngredientCategoryService ingredientCategoryService;
     private final UserService userService;
     private final PdfService pdfService;
@@ -57,22 +56,19 @@ public class RecipeController {
                               @RequestParam(defaultValue = "6") int size,
                               Authentication authentication,
                               Model model) {
-        Page<Recipe> recipesPage = recipeService.filterRecipes(title, categoryIds,
-                ingredientIds, preparationTime, difficulty, page, size);
-
+        Page<Recipe> recipesPage = recipeService.filterRecipes(title, categoryIds, ingredientIds, preparationTime, difficulty, page, size);
         model.addAttribute("recipesPage", recipesPage);
-        model.addAttribute("currentPage",page);
-        model.addAttribute("hasPrevious",recipesPage.hasPrevious());
-        model.addAttribute("hasNext",recipesPage.hasNext());
-        model.addAttribute("size",size);
+        model.addAttribute("currentPage", page);
+        model.addAttribute("hasPrevious", recipesPage.hasPrevious());
+        model.addAttribute("hasNext", recipesPage.hasNext());
+        model.addAttribute("size", size);
         model.addAttribute("categories", mealCategoryService.findAll());
-
+        model.addAttribute("difficulties", Difficulty.values());
         if (title != null && !title.isBlank()) model.addAttribute("title", title);
         if (ingredientIds != null && !ingredientIds.isEmpty()) model.addAttribute("ingredientIds", ingredientIds);
         if (categoryIds != null && !categoryIds.isEmpty()) model.addAttribute("categoryIds", categoryIds);
         if (preparationTime != null && preparationTime > 0) model.addAttribute("preparationTime", preparationTime);
         if (difficulty != null) model.addAttribute("difficulty", difficulty);
-
         return "recipes/recipes_list";
     }
 
@@ -93,17 +89,17 @@ public class RecipeController {
                                @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
                                Authentication authentication,
                                @RequestParam(value = "redirectUrl", required = false) String redirectUrl,
-                               Model model) {
+                               Model model,
+                               HttpServletRequest request) {
         String email = AuthUtils.getUserEmail(authentication);
-
         if (bindingResult.hasErrors()) {
             model.addAttribute("recipe", updateRecipeDTO);
             prepareFormModel(model, email, redirectUrl);
             return "recipes/recipe_form";
         }
-
         recipeService.addNewRecipe(updateRecipeDTO, imageFile, email);
-        return "redirect:/home/index";
+        String target = resolveRedirectUrl(redirectUrl, request, "/recipes");
+        return "redirect:" + target;
     }
 
     @GetMapping("/edit/{id}")
@@ -115,27 +111,28 @@ public class RecipeController {
         Recipe recipe = recipeService.findById(id);
         RecipeDTO recipeDTO = RecipeDTO.from(recipe);
         model.addAttribute("recipe", recipeDTO);
-
         prepareFormModel(model, email, request.getHeader("Referer"));
         return "recipes/recipe_form";
     }
 
     @PostMapping("/update/{id}")
-    public String updateRecipe(@PathVariable Long id, @Valid @ModelAttribute UpdateRecipeDTO updateRecipeDTO,
+    public String updateRecipe(@PathVariable Long id,
+                               @Valid @ModelAttribute UpdateRecipeDTO updateRecipeDTO,
                                BindingResult bindingResult,
                                @RequestParam(required = false) MultipartFile imageFile,
                                Authentication authentication,
                                @RequestParam(value = "redirectUrl", required = false) String redirectUrl,
-                               Model model) {
+                               Model model,
+                               HttpServletRequest request) {
         String email = AuthUtils.getUserEmail(authentication);
         if (bindingResult.hasErrors()) {
             model.addAttribute("recipe", updateRecipeDTO);
             prepareFormModel(model, email, redirectUrl);
             return "recipes/recipe_form";
         }
-
         recipeService.updateRecipe(id, updateRecipeDTO, imageFile, email);
-        return "redirect:/recipes";
+        String target = resolveRedirectUrl(redirectUrl, request, "/recipes");
+        return "redirect:" + target;
     }
 
     @GetMapping("/{id}")
@@ -146,25 +143,22 @@ public class RecipeController {
         Recipe recipe = recipeService.findById(id);
         String email = AuthUtils.getUserEmail(authentication);
         User loggedUser = userService.findByEmail(email);
-
         if (recipe.getAuthor() != null) model.addAttribute("author", recipe.getAuthor());
-
         model.addAttribute("recipe", RecipeViewDTO.from(recipe));
         model.addAttribute("loggedInUser", loggedUser);
         model.addAttribute("currentUserId", loggedUser.getId());
         model.addAttribute("redirectUrl", request.getHeader("Referer"));
-
         return "recipes/recipe-details";
     }
 
     @GetMapping("/delete/{id}")
-    public String deleteRecipe(@PathVariable Long id, Authentication authentication){
+    public String deleteRecipe(@PathVariable Long id, Authentication authentication) {
         String email = AuthUtils.getUserEmail(authentication);
         Recipe recipe = recipeService.findById(id);
         if (recipe.getAuthor() != null && recipe.getAuthor().getId().equals(userService.findByEmail(email).getId())) {
             recipeService.deleteById(id);
         }
-        return "redirect:/recipes/my-recipes";
+        return "redirect:/recipes";
     }
 
     @GetMapping(value = "/generate/{id}", produces = MediaType.APPLICATION_PDF_VALUE)
@@ -172,15 +166,9 @@ public class RecipeController {
         Recipe recipe = recipeService.findById(id);
         User author = recipe.getAuthor();
         byte[] pdfBytes = pdfService.generatePdf(recipe, author);
-
         HttpHeaders headers = new HttpHeaders();
-        headers.setContentDisposition(
-                ContentDisposition.builder("attachment").filename(recipe.getTitle() + ".pdf").build());
-
-        return ResponseEntity.ok()
-                .headers(headers)
-                .contentType(MediaType.APPLICATION_PDF)
-                .body(pdfBytes);
+        headers.setContentDisposition(ContentDisposition.builder("attachment").filename(recipe.getTitle() + ".pdf").build());
+        return ResponseEntity.ok().headers(headers).contentType(MediaType.APPLICATION_PDF).body(pdfBytes);
     }
 
     @GetMapping("/ask-ai")
@@ -194,11 +182,9 @@ public class RecipeController {
     public String generate(@RequestParam String prompt, Authentication authentication, Model model) {
         String email = AuthUtils.getUserEmail(authentication);
         model.addAttribute("loggedInUser", userService.findByEmail(email));
-
         try {
             RecipeFromAI aiRecipe = groqApiClient.generateRecipeFromPrompt(prompt);
             model.addAttribute("aiRecipe", aiRecipe);
-
             return "recipes/generate";
         } catch (Exception e) {
             model.addAttribute("error", "Sorry, I couldn't generate a recipe. " + e.getMessage());
@@ -211,17 +197,20 @@ public class RecipeController {
         model.addAttribute("difficulties", Difficulty.values());
         model.addAttribute("categories", mealCategoryService.findAll());
         model.addAttribute("ingredientCategories", ingredientCategoryService.findAll());
-        model.addAttribute("redirectUrl", redirectUrl);
+        model.addAttribute("redirectUrl", (redirectUrl == null || redirectUrl.isBlank()) ? "/recipes" : redirectUrl);
     }
 
     @PostMapping("/save-ai")
-    public String saveAi(@ModelAttribute RecipeFromAI aiRecipe,
-                         Authentication authentication) {
+    public String saveAi(@ModelAttribute RecipeFromAI aiRecipe, Authentication authentication) {
         String email = AuthUtils.getUserEmail(authentication);
         Recipe recipe = recipeService.saveFromAI(aiRecipe, email);
-
-        return "redirect:/recipes/" +  recipe.getId();
-
+        return "redirect:/recipes/" + recipe.getId();
     }
 
+    private String resolveRedirectUrl(String candidate, HttpServletRequest request, String fallback) {
+        String safeFallback = (fallback == null || fallback.isBlank()) ? "/recipes" : fallback;
+        if (candidate == null || candidate.isBlank()) return safeFallback;
+        if (candidate.startsWith("/")) return candidate;
+        return safeFallback;
+    }
 }

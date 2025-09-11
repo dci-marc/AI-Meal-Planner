@@ -200,7 +200,7 @@ public class RecipeService {
     @Transactional
     public Recipe saveFromAI(RecipeFromAI recipeFromAI, String email) {
         Recipe recipe = recipeFromAI.toRecipeSkeleton();
-        recipe.setIngredients(new ArrayList<>()); // ensure non-null
+        recipe.setIngredients(new ArrayList<>());
 
         for (var line : recipeFromAI.getIngredients()) {
             RecipeIngredient ri = line.toRecipeIngredient(lookup);
