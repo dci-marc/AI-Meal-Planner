@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.dci.aimealplanner.entities.ImageMetaData;
+import org.dci.aimealplanner.entities.users.User;
 import org.dci.aimealplanner.models.Difficulty;
 import org.dci.aimealplanner.models.SourceType;
 
@@ -60,8 +61,9 @@ public class Recipe {
     @Enumerated(EnumType.STRING)
     private SourceType sourceType;
 
-    @Column(nullable = true)
-    private Long authorId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "author_id", nullable = true)
+    private User author;
 
     @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RecipeIngredient> ingredients = new ArrayList<>();

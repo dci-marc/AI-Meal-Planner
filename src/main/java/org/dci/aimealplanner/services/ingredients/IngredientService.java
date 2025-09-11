@@ -6,7 +6,10 @@ import org.dci.aimealplanner.entities.ingredients.Ingredient;
 import org.dci.aimealplanner.entities.ingredients.NutritionFact;
 import org.dci.aimealplanner.integration.foodapi.dto.FoodItem;
 import org.dci.aimealplanner.repositories.ingredients.IngredientRepository;
+import org.dci.aimealplanner.repositories.ingredients.IngredientSummary;
 import org.dci.aimealplanner.repositories.ingredients.NutritionFactRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -28,7 +31,7 @@ public class IngredientService {
     public Ingredient upsertFromUsda(String requestedName, FoodItem foodItem) {
         String name = normalize(requestedName);
 
-        Ingredient ingredient = ingredientRepository.findByNameIgnoreCase(name).orElseGet(() -> {
+        Ingredient ingredient = ingredientRepository.findByNameIgnoreCaseLike(name).orElseGet(() -> {
                     Ingredient ing = new Ingredient();
                     ing.setName(name);
                     return ing;
@@ -53,5 +56,13 @@ public class IngredientService {
 
     public Ingredient findById(Long id) {
         return ingredientRepository.findById(id).orElseThrow(() -> new RuntimeException("Ingredient not found"));
+    }
+
+    public Page<IngredientSummary> search(String query, PageRequest pageRequest) {
+        return ingredientRepository.smartSearch(query, pageRequest);
+    }
+
+    public List<IngredientSummary> findByIdIn(List<Long> ids) {
+        return ingredientRepository.findByIdIn(ids);
     }
 }

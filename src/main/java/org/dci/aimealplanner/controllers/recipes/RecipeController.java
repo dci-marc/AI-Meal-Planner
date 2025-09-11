@@ -4,21 +4,25 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.controllers.auth.AuthUtils;
-import org.dci.aimealplanner.entities.ingredients.Ingredient;
-import org.dci.aimealplanner.entities.ingredients.Unit;
-import org.dci.aimealplanner.entities.recipes.MealCategory;
 import org.dci.aimealplanner.entities.recipes.Recipe;
-import org.dci.aimealplanner.entities.recipes.RecipeIngredient;
+import org.dci.aimealplanner.entities.users.User;
+import org.dci.aimealplanner.integration.aiapi.GroqApiClient;
+import org.dci.aimealplanner.integration.aiapi.dtos.recipes.RecipeFromAI;
 import org.dci.aimealplanner.models.Difficulty;
 import org.dci.aimealplanner.models.recipes.RecipeDTO;
+import org.dci.aimealplanner.models.recipes.RecipeViewDTO;
 import org.dci.aimealplanner.models.recipes.UpdateRecipeDTO;
 import org.dci.aimealplanner.services.ingredients.IngredientCategoryService;
-import org.dci.aimealplanner.services.ingredients.IngredientService;
 import org.dci.aimealplanner.services.ingredients.IngredientUnitRatioService;
-import org.dci.aimealplanner.services.ingredients.UnitService;
 import org.dci.aimealplanner.services.recipes.MealCategoryService;
 import org.dci.aimealplanner.services.recipes.RecipeService;
 import org.dci.aimealplanner.services.users.UserService;
+import org.dci.aimealplanner.services.utils.PdfService;
+import org.springframework.data.domain.Page;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -37,16 +41,43 @@ import java.util.Set;
 public class RecipeController {
     private final RecipeService recipeService;
     private final MealCategoryService mealCategoryService;
-    private final IngredientService ingredientService;
-    private final UnitService  unitService;
     private final IngredientUnitRatioService  ingredientUnitRatioService;
     private final IngredientCategoryService ingredientCategoryService;
     private final UserService userService;
+    private final PdfService pdfService;
+    private final GroqApiClient groqApiClient;
+
+    @GetMapping
+    public String showRecipes(@RequestParam(required = false) String title,
+                              @RequestParam(required = false) Integer preparationTime,
+                              @RequestParam(required = false) Difficulty difficulty,
+                              @RequestParam(required = false) Set<Long> ingredientIds,
+                              @RequestParam(required = false) Set<Long> categoryIds,
+                              @RequestParam(defaultValue = "0") int page,
+                              @RequestParam(defaultValue = "6") int size,
+                              Authentication authentication,
+                              Model model) {
+        Page<Recipe> recipesPage = recipeService.filterRecipes(title, categoryIds,
+                ingredientIds, preparationTime, difficulty, page, size);
+
+        model.addAttribute("recipesPage", recipesPage);
+        model.addAttribute("currentPage",page);
+        model.addAttribute("hasPrevious",recipesPage.hasPrevious());
+        model.addAttribute("hasNext",recipesPage.hasNext());
+        model.addAttribute("size",size);
+        model.addAttribute("categories", mealCategoryService.findAll());
+
+        if (title != null && !title.isBlank()) model.addAttribute("title", title);
+        if (ingredientIds != null && !ingredientIds.isEmpty()) model.addAttribute("ingredientIds", ingredientIds);
+        if (categoryIds != null && !categoryIds.isEmpty()) model.addAttribute("categoryIds", categoryIds);
+        if (preparationTime != null && preparationTime > 0) model.addAttribute("preparationTime", preparationTime);
+        if (difficulty != null) model.addAttribute("difficulty", difficulty);
+
+        return "recipes/recipes_list";
+    }
 
     @GetMapping("/new")
-    public String newRecipe(Authentication authentication,
-                            Model model,
-                            HttpServletRequest request) {
+    public String newRecipe(Authentication authentication, Model model, HttpServletRequest request) {
         String email = AuthUtils.getUserEmail(authentication);
         Recipe recipe = new Recipe();
         recipe.setIngredients(new ArrayList<>());
@@ -86,7 +117,6 @@ public class RecipeController {
         model.addAttribute("recipe", recipeDTO);
 
         prepareFormModel(model, email, request.getHeader("Referer"));
-
         return "recipes/recipe_form";
     }
 
@@ -104,22 +134,94 @@ public class RecipeController {
             return "recipes/recipe_form";
         }
 
-        Recipe updated = recipeService.updateRecipe(id, updateRecipeDTO, imageFile, email);
-        return "redirect:/home/index";
+        recipeService.updateRecipe(id, updateRecipeDTO, imageFile, email);
+        return "redirect:/recipes";
     }
 
-    private void prepareFormModel(Model model,
-                                  String userEmail,
-                                  String redirectUrl) {
+    @GetMapping("/{id}")
+    public String showRecipeDetail(@PathVariable Long id,
+                                   Authentication authentication,
+                                   HttpServletRequest request,
+                                   Model model) {
+        Recipe recipe = recipeService.findById(id);
+        String email = AuthUtils.getUserEmail(authentication);
+        User loggedUser = userService.findByEmail(email);
+
+        if (recipe.getAuthor() != null) model.addAttribute("author", recipe.getAuthor());
+
+        model.addAttribute("recipe", RecipeViewDTO.from(recipe));
+        model.addAttribute("loggedInUser", loggedUser);
+        model.addAttribute("currentUserId", loggedUser.getId());
+        model.addAttribute("redirectUrl", request.getHeader("Referer"));
+
+        return "recipes/recipe-details";
+    }
+
+    @GetMapping("/delete/{id}")
+    public String deleteRecipe(@PathVariable Long id, Authentication authentication){
+        String email = AuthUtils.getUserEmail(authentication);
+        Recipe recipe = recipeService.findById(id);
+        if (recipe.getAuthor() != null && recipe.getAuthor().getId().equals(userService.findByEmail(email).getId())) {
+            recipeService.deleteById(id);
+        }
+        return "redirect:/recipes/my-recipes";
+    }
+
+    @GetMapping(value = "/generate/{id}", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<byte[]> generatePdf(@PathVariable Long id) {
+        Recipe recipe = recipeService.findById(id);
+        User author = recipe.getAuthor();
+        byte[] pdfBytes = pdfService.generatePdf(recipe, author);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentDisposition(
+                ContentDisposition.builder("attachment").filename(recipe.getTitle() + ".pdf").build());
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdfBytes);
+    }
+
+    @GetMapping("/ask-ai")
+    public String askAi(Authentication authentication, Model model) {
+        String email = AuthUtils.getUserEmail(authentication);
+        model.addAttribute("loggedInUser", userService.findByEmail(email));
+        return "recipes/ask_ai";
+    }
+
+    @PostMapping("/generate")
+    public String generate(@RequestParam String prompt, Authentication authentication, Model model) {
+        String email = AuthUtils.getUserEmail(authentication);
+        model.addAttribute("loggedInUser", userService.findByEmail(email));
+
+        try {
+            RecipeFromAI aiRecipe = groqApiClient.generateRecipeFromPrompt(prompt);
+            model.addAttribute("aiRecipe", aiRecipe);
+
+            return "recipes/generate";
+        } catch (Exception e) {
+            model.addAttribute("error", "Sorry, I couldn't generate a recipe. " + e.getMessage());
+            return "recipes/ask_ai";
+        }
+    }
+
+    private void prepareFormModel(Model model, String userEmail, String redirectUrl) {
         model.addAttribute("loggedInUser", userService.findByEmail(userEmail));
         model.addAttribute("difficulties", Difficulty.values());
         model.addAttribute("categories", mealCategoryService.findAll());
-        model.addAttribute("ingredientList", ingredientService.findAll());
-        model.addAttribute("unitList", unitService.findAll());
         model.addAttribute("ingredientCategories", ingredientCategoryService.findAll());
         model.addAttribute("redirectUrl", redirectUrl);
     }
 
+    @PostMapping("/save-ai")
+    public String saveAi(@ModelAttribute RecipeFromAI aiRecipe,
+                         Authentication authentication) {
+        String email = AuthUtils.getUserEmail(authentication);
+        Recipe recipe = recipeService.saveFromAI(aiRecipe, email);
 
+        return "redirect:/recipes/" +  recipe.getId();
+
+    }
 
 }

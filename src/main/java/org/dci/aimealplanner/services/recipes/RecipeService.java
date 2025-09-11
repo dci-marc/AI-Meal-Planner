@@ -3,21 +3,36 @@ package org.dci.aimealplanner.services.recipes;
 import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.entities.ImageMetaData;
 import org.dci.aimealplanner.entities.ingredients.Ingredient;
+import org.dci.aimealplanner.entities.ingredients.IngredientUnitRatio;
+import org.dci.aimealplanner.entities.ingredients.NutritionFact;
 import org.dci.aimealplanner.entities.ingredients.Unit;
+import org.dci.aimealplanner.entities.recipes.MealCategory;
 import org.dci.aimealplanner.entities.recipes.Recipe;
 import org.dci.aimealplanner.entities.recipes.RecipeIngredient;
+import org.dci.aimealplanner.integration.aiapi.dtos.recipes.RecipeFromAI;
+import org.dci.aimealplanner.models.Difficulty;
+import org.dci.aimealplanner.models.SourceType;
 import org.dci.aimealplanner.models.recipes.UpdateRecipeDTO;
 import org.dci.aimealplanner.repositories.recipes.RecipeIngredientRepository;
 import org.dci.aimealplanner.repositories.recipes.RecipeRepository;
-import org.dci.aimealplanner.services.cloudinary.CloudinaryService;
+import org.dci.aimealplanner.services.ingredients.IngredientLookupService;
+import org.dci.aimealplanner.services.ingredients.IngredientUnitRatioService;
+import org.dci.aimealplanner.services.utils.CloudinaryService;
 import org.dci.aimealplanner.services.ingredients.IngredientService;
 import org.dci.aimealplanner.services.ingredients.UnitService;
 import org.dci.aimealplanner.services.users.UserService;
+import org.dci.aimealplanner.specifications.RecipeSpecification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -30,6 +45,9 @@ public class RecipeService {
     private final UnitService unitService;
     private final IngredientService ingredientService;
     private final RecipeIngredientRepository recipeIngredientRepository;
+    private final IngredientLookupService lookup;
+    private final MealCategoryService mealCategoryService;
+    private final IngredientUnitRatioService ingredientUnitRatioService;
 
     @Transactional
     public Recipe addNewRecipe(UpdateRecipeDTO recipeDTO, MultipartFile imageFile, String email) {
@@ -43,6 +61,8 @@ public class RecipeService {
             }
             recipe.setIngredients(recipeIngredients);
         }
+
+        calculateNutritionFacts(recipe);
 
         return recipeRepository.save(recipe);
     }
@@ -94,6 +114,8 @@ public class RecipeService {
 
         existingRecipe.getIngredients().clear();
         existingRecipe.getIngredients().addAll(target);
+
+        calculateNutritionFacts(existingRecipe);
 
 
         updateRecipeFields(existingRecipe, recipeDTO, imageFile, email);
@@ -149,8 +171,110 @@ public class RecipeService {
             imageMetaData.setPublicId(uploadedData.get("publicId"));
             recipe.setImage(imageMetaData);
         }
-        recipe.setAuthorId(userService.findByEmail(email).getId());
+        recipe.setAuthor(userService.findByEmail(email));
     }
 
 
+    public void deleteById(Long id) {
+        recipeRepository.deleteById(id);
+    }
+
+    public List<Recipe> findAll() {
+        return recipeRepository.findAll();
+    }
+
+    public Page<Recipe> filterRecipes(String title, Set<Long> categoryIds,
+                                      Set<Long> ingredientIds, Integer preparationTime,
+                                      Difficulty difficulty, int page, int size) {
+        Specification<Recipe> recipeSpecification = RecipeSpecification.byDifficulty(difficulty).and(
+                RecipeSpecification.byPreparationTimeLessThan(preparationTime).and(
+                        RecipeSpecification.byTitleContains(title).and(
+                                RecipeSpecification.byCategoryIds(categoryIds).and(
+                                        RecipeSpecification.byIngredientContains(ingredientIds)))));
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("title").ascending());
+
+        return recipeRepository.findAll(recipeSpecification, pageable);
+    }
+
+    @Transactional
+    public Recipe saveFromAI(RecipeFromAI recipeFromAI, String email) {
+        Recipe recipe = recipeFromAI.toRecipeSkeleton();
+        recipe.setIngredients(new ArrayList<>()); // ensure non-null
+
+        for (var line : recipeFromAI.getIngredients()) {
+            RecipeIngredient ri = line.toRecipeIngredient(lookup);
+            ri.setRecipe(recipe);
+            recipe.getIngredients().add(ri);
+        }
+
+        if (recipeFromAI.getMealCategories() != null) {
+            for (String catName : recipeFromAI.getMealCategories()) {
+                MealCategory category = mealCategoryService.findByName(catName);
+                recipe.getMealCategories().add(category);
+            }
+        }
+
+        recipe.setAuthor(userService.findByEmail(email));
+        recipe.setSourceType(SourceType.AI);
+
+        return recipeRepository.save(recipe);
+    }
+
+    @Transactional(readOnly = true)
+    public void calculateNutritionFacts(Recipe recipe) {
+        if (recipe == null || recipe.getIngredients() == null || recipe.getIngredients().isEmpty()) {
+            recipe.setKcalPerServ(null);
+            recipe.setProteinPerServ(null);
+            recipe.setCarbsPerServ(null);
+            recipe.setFatPerServ(null);
+            return;
+        }
+
+        BigDecimal calories = BigDecimal.ZERO;
+        BigDecimal carbs = BigDecimal.ZERO;
+        BigDecimal fats = BigDecimal.ZERO;
+        BigDecimal protein = BigDecimal.ZERO;
+
+        for (RecipeIngredient recipeIngredient : recipe.getIngredients()) {
+            if (recipeIngredient == null || recipeIngredient.getIngredient() == null
+                    || recipeIngredient.getUnit() == null || recipeIngredient.getAmount() == null) {
+                continue;
+            }
+
+            Ingredient ingredient = recipeIngredient.getIngredient();
+            Unit unit =  recipeIngredient.getUnit();
+            NutritionFact nutritionFact = ingredient.getNutritionFact();
+            if (nutritionFact == null) {
+                continue;
+            }
+
+            IngredientUnitRatio ingredientUnitRatio = ingredientUnitRatioService.findRatio(ingredient, unit);
+            if (ingredientUnitRatio == null || ingredientUnitRatio.getRatio() == null) {
+                continue;
+            }
+
+            BigDecimal gramsForLine = recipeIngredient.getAmount()
+                    .multiply(BigDecimal.valueOf(ingredientUnitRatio.getRatio()));
+
+            BigDecimal factor = gramsForLine.divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP);
+
+            if (nutritionFact.getKcal() != null) {
+                calories = calories.add(BigDecimal.valueOf(nutritionFact.getKcal()).multiply(factor));
+            }
+            if (nutritionFact.getProtein() != null) {
+                protein = protein.add(BigDecimal.valueOf(nutritionFact.getProtein()).multiply(factor));
+            }
+            if (nutritionFact.getCarbs() != null) {
+                carbs = carbs.add(BigDecimal.valueOf(nutritionFact.getCarbs()).multiply(factor));
+            }
+            if (nutritionFact.getFat() != null) {
+                fats = fats.add(BigDecimal.valueOf(nutritionFact.getFat()).multiply(factor));
+            }
+        }
+        recipe.setKcalPerServ(calories);
+        recipe.setProteinPerServ(protein);
+        recipe.setCarbsPerServ(carbs);
+        recipe.setFatPerServ(fats);
+    }
 }

@@ -5,20 +5,23 @@ import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.entities.ingredients.Ingredient;
 import org.dci.aimealplanner.entities.ingredients.IngredientUnitRatio;
 import org.dci.aimealplanner.entities.ingredients.Unit;
+import org.dci.aimealplanner.entities.recipes.Recipe;
 import org.dci.aimealplanner.entities.users.User;
 import org.dci.aimealplanner.integration.aiapi.GroqApiClient;
-import org.dci.aimealplanner.integration.aiapi.dtos.IngredientUnitFromAI;
-import org.dci.aimealplanner.integration.aiapi.dtos.UnitRatios;
+import org.dci.aimealplanner.integration.aiapi.dtos.ingredients.IngredientUnitFromAI;
+import org.dci.aimealplanner.integration.aiapi.dtos.ingredients.UnitRatios;
 import org.dci.aimealplanner.integration.foodapi.FoodApiClient;
 import org.dci.aimealplanner.integration.foodapi.OpenFoodFactsClient;
 import org.dci.aimealplanner.integration.foodapi.dto.FoodItem;
 import org.dci.aimealplanner.models.Role;
 import org.dci.aimealplanner.models.UserType;
+import org.dci.aimealplanner.repositories.recipes.RecipeRepository;
 import org.dci.aimealplanner.services.ingredients.IngredientCategoryService;
 import org.dci.aimealplanner.services.ingredients.IngredientService;
 import org.dci.aimealplanner.services.ingredients.IngredientUnitRatioService;
 import org.dci.aimealplanner.services.ingredients.UnitService;
 import org.dci.aimealplanner.services.recipes.MealCategoryService;
+import org.dci.aimealplanner.services.recipes.RecipeService;
 import org.dci.aimealplanner.services.users.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +32,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
@@ -45,6 +49,8 @@ public class ApplicationSeeder implements ApplicationRunner {
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
 
+    private final RecipeRepository recipeRepository;
+    private final RecipeService recipeService;
 
 
     @Override
@@ -133,5 +139,34 @@ public class ApplicationSeeder implements ApplicationRunner {
 
     public void seedMealCategory() {
         mealCategoryService.addAll(openFoodFactsClient.getOffCategories().toMealCategories());
+    }
+
+    private List<String> getDbIngredientNames() {
+        return ingredientService.findAll().stream()
+                .map(ing -> ing.getName().trim().toLowerCase())
+                .toList();
+    }
+
+    private List<String> findMissingIngredients(List<String> candidates) {
+        Set<String> existing = new java.util.HashSet<>(getDbIngredientNames());
+        return candidates.stream()
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .filter(s -> !existing.contains(s.toLowerCase()))
+                .toList();
+    }
+
+    private void seedOneIfMissing(String name) {
+        if (ingredientService.exists(name)) return;
+        var apiIngredient = foodApiClient.searchFood(name);
+        if (apiIngredient.isPresent() && apiIngredient.get().allNutritionFactsAvailable()) {
+            ingredientService.upsertFromUsda(name, apiIngredient.get());
+        }
+    }
+
+    private void seedNames(List<String> names) {
+        for (String n : names) {
+            seedOneIfMissing(n);
+        }
     }
 }
