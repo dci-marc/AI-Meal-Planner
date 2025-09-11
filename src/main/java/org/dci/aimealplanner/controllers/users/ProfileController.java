@@ -1,9 +1,8 @@
-package org.dci.aimealplanner.controllers;
+package org.dci.aimealplanner.controllers.users;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.controllers.auth.AuthUtils;
-import org.dci.aimealplanner.entities.users.User;
 import org.dci.aimealplanner.entities.users.UserInformation;
 import org.dci.aimealplanner.models.ActivityLevel;
 import org.dci.aimealplanner.models.Gender;
@@ -12,13 +11,11 @@ import org.dci.aimealplanner.services.recipes.DietaryPreferenceService;
 import org.dci.aimealplanner.services.users.UserInformationService;
 import org.dci.aimealplanner.services.users.UserService;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.util.List;
 
 @Controller
