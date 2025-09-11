@@ -15,10 +15,18 @@
         }
         .chip { display: inline-flex; align-items: center; gap: .5rem; }
         .chip button { line-height: 1; }
+        .recipe-img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-top-left-radius: .375rem;
+            border-top-right-radius: .375rem;
+        }
     </style>
 </head>
-<body class="bg-light">
-<div class="container py-4">
+<body class="bg-light d-flex flex-column min-vh-100">
+
+<main class="container py-4 flex-grow-1">
 
     <div>
         <form id="filterForm" th:action="@{/recipes}" method="get" class="row g-3 mb-4 bg-white p-3 rounded shadow-sm">
@@ -44,7 +52,6 @@
                 </div>
 
                 <div id="ingredientChips" class="mt-2 d-flex flex-wrap gap-2"></div>
-
                 <div id="ingredientHiddenInputs"></div>
 
                 <script th:inline="javascript">
@@ -57,9 +64,11 @@
             <div class="col-md-3">
                 <select name="difficulty" class="form-select">
                     <option value="" th:selected="${difficulty == null}">Any Difficulty</option>
-                    <option value="EASY"   th:selected="${difficulty?.name() == 'EASY'}">Easy</option>
-                    <option value="MEDIUM" th:selected="${difficulty?.name() == 'MEDIUM'}">Medium</option>
-                    <option value="HARD"   th:selected="${difficulty?.name() == 'HARD'}">Hard</option>
+                    <option th:each="d : ${difficulties}"
+                            th:value="${d}"
+                            th:text="${#strings.capitalize(#strings.toLowerCase(d.name()))}"
+                            th:selected="${difficulty != null and d.name() == difficulty.name()}">
+                    </option>
                 </select>
             </div>
 
@@ -77,7 +86,6 @@
     <div class="row g-4">
         <div class="col-md-4" th:each="recipe : ${recipesPage.content}">
             <div class="card h-100 shadow-sm">
-
                 <div class="position-relative">
                     <img th:if="${recipe.image != null}" th:src="${recipe.image.imageUrl}"
                          class="recipe-img card-img-top" alt="Recipe Image">
@@ -104,46 +112,49 @@
                         <a th:href="@{/recipes/{id}(id=${recipe.id})}" class="btn btn-outline-primary">View Details</a>
                     </div>
                 </div>
-
             </div>
         </div>
     </div>
 
-    <div class="d-flex justify-content-center mt-4" th:if="${recipesPage.totalPages > 1}">
-        <form method="get" th:action="@{/recipes}">
-            <input type="hidden" name="title" th:value="${title}">
-            <input type="hidden" name="difficulty" th:value="${difficulty}">
-            <input type="hidden" name="preparationTime" th:value="${preparationTime}">
+</main>
 
-            <span th:each="cid : ${categoryIds}">
-                <input type="hidden" name="categoryIds" th:value="${cid}">
-            </span>
-            <span th:each="iid : ${ingredientIds}">
-                <input type="hidden" name="ingredientIds" th:value="${iid}">
-            </span>
+<footer class="mt-auto">
+    <div class="border-top bg-white">
+        <div class="container py-3 d-flex justify-content-center" th:if="${recipesPage.totalPages > 1}">
+            <form method="get" th:action="@{/recipes}">
+                <input type="hidden" name="title" th:value="${title}">
+                <input type="hidden" name="difficulty" th:value="${difficulty}">
+                <input type="hidden" name="preparationTime" th:value="${preparationTime}">
 
-            <ul class="pagination mb-0">
-                <li class="page-item" th:classappend="${!recipesPage.hasPrevious()} ? ' disabled'">
-                    <button class="page-link" name="page" value="0" type="submit">First</button>
-                </li>
-                <li class="page-item" th:classappend="${!recipesPage.hasPrevious()} ? ' disabled'">
-                    <button class="page-link" name="page" th:value="${recipesPage.number - 1}" type="submit">Previous</button>
-                </li>
-                <li class="page-item" th:each="i : ${#numbers.sequence(0, recipesPage.totalPages - 1)}"
-                    th:classappend="${i == recipesPage.number} ? ' active'">
-                    <button class="page-link" name="page" th:value="${i}" th:text="${i + 1}" type="submit">1</button>
-                </li>
-                <li class="page-item" th:classappend="${!recipesPage.hasNext()} ? ' disabled'">
-                    <button class="page-link" name="page" th:value="${recipesPage.number + 1}" type="submit">Next</button>
-                </li>
-                <li class="page-item" th:classappend="${!recipesPage.hasNext()} ? ' disabled'">
-                    <button class="page-link" name="page" th:value="${recipesPage.totalPages - 1}" type="submit">Last</button>
-                </li>
-            </ul>
-        </form>
+                <span th:each="cid : ${categoryIds}">
+                    <input type="hidden" name="categoryIds" th:value="${cid}">
+                </span>
+                <span th:each="iid : ${ingredientIds}">
+                    <input type="hidden" name="ingredientIds" th:value="${iid}">
+                </span>
+
+                <ul class="pagination mb-0">
+                    <li class="page-item" th:classappend="${!recipesPage.hasPrevious()} ? ' disabled'">
+                        <button class="page-link" name="page" value="0" type="submit">First</button>
+                    </li>
+                    <li class="page-item" th:classappend="${!recipesPage.hasPrevious()} ? ' disabled'">
+                        <button class="page-link" name="page" th:value="${recipesPage.number - 1}" type="submit">Previous</button>
+                    </li>
+                    <li class="page-item" th:each="i : ${#numbers.sequence(0, recipesPage.totalPages - 1)}"
+                        th:classappend="${i == recipesPage.number} ? ' active'">
+                        <button class="page-link" name="page" th:value="${i}" th:text="${i + 1}" type="submit">1</button>
+                    </li>
+                    <li class="page-item" th:classappend="${!recipesPage.hasNext()} ? ' disabled'">
+                        <button class="page-link" name="page" th:value="${recipesPage.number + 1}" type="submit">Next</button>
+                    </li>
+                    <li class="page-item" th:classappend="${!recipesPage.hasNext()} ? ' disabled'">
+                        <button class="page-link" name="page" th:value="${recipesPage.totalPages - 1}" type="submit">Last</button>
+                    </li>
+                </ul>
+            </form>
+        </div>
     </div>
-
-</div>
+</footer>
 
 <script>
     (function () {
@@ -151,7 +162,7 @@
         const results = document.getElementById('ingredientResults');
         const chips  = document.getElementById('ingredientChips');
         const hidden = document.getElementById('ingredientHiddenInputs');
-        const selected = new Map(); // id -> name
+        const selected = new Map();
         let abortCtrl, timer;
 
         function showResultsBox(show) { results.style.display = show ? 'block' : 'none'; }
@@ -214,16 +225,14 @@
             abortCtrl = new AbortController();
             try {
                 const r = await fetch(`/api/ingredients?q=${encodeURIComponent(q)}&size=50`, { signal: abortCtrl.signal });
-                if (!r.ok) { console.error('Ingredient search failed:', r.status, r.statusText); showResultsBox(false); return; }
+                if (!r.ok) { showResultsBox(false); return; }
                 const page = await r.json();
                 renderResults(page.content);
             } catch (e) {
-                if (e.name !== 'AbortError') console.error('Ingredient search error:', e);
-                showResultsBox(false);
+                if (e.name !== 'AbortError') showResultsBox(false);
             }
         }
 
-        // Debounce typing
         input?.addEventListener('input', () => {
             clearTimeout(timer);
             const q = input.value.trim();
@@ -251,18 +260,15 @@
             try {
                 const params = ids.map(id => `ids=${encodeURIComponent(id)}`).join('&');
                 const r = await fetch(`/api/ingredients/by-ids?${params}`);
-                if (!r.ok) { console.error('Prefill failed:', r.status); return; }
+                if (!r.ok) return;
                 const list = await r.json();
                 list.forEach(it => selected.set(String(it.id), it.name));
                 renderChips();
-            } catch (e) {
-                console.error('Prefill error:', e);
-            }
+            } catch {}
         }
         try { prefill(Array.isArray(preselectedIngredientIds) ? preselectedIngredientIds : []); } catch {}
     })();
 </script>
-
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

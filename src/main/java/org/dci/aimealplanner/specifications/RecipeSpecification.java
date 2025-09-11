@@ -35,7 +35,7 @@ public class RecipeSpecification {
             if (preparationTime == null || preparationTime.intValue() < 0) {
                 return null;
             }
-            return criteriaBuilder.lessThanOrEqualTo(root.get("preparationTime"), preparationTime);
+            return criteriaBuilder.lessThanOrEqualTo(root.get("preparationTimeMinutes"), preparationTime);
         };
     }
 
