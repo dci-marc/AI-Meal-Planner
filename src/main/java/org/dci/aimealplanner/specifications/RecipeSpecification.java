@@ -6,6 +6,7 @@ import org.dci.aimealplanner.entities.recipes.MealCategory;
 import org.dci.aimealplanner.entities.recipes.Recipe;
 import org.dci.aimealplanner.entities.recipes.RecipeIngredient;
 import org.dci.aimealplanner.models.Difficulty;
+import org.dci.aimealplanner.models.SourceType;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.List;
@@ -78,6 +79,22 @@ public class RecipeSpecification {
             );
 
             return cb.equal(sub, (long) ingredientIds.size());
+        };
+    }
+
+    public static Specification<Recipe> bySourceType(SourceType sourceType) {
+        return (root, query, cb) -> {
+            if (sourceType == null) return cb.conjunction();
+            return cb.equal(root.get("sourceType"), sourceType);
+        };
+    }
+
+    public static Specification<Recipe> bySourceTypeOrNull(SourceType sourceType) {
+        return (root, query, cb) -> {
+            if (sourceType == null) return cb.conjunction();
+            Predicate isType = cb.equal(root.get("sourceType"), sourceType);
+            Predicate isNull = cb.isNull(root.get("sourceType"));
+            return cb.or(isType, isNull);
         };
     }
 
