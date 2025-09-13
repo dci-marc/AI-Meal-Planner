@@ -1,6 +1,6 @@
 package org.dci.aimealplanner.repositories.planning;
 
-import org.dci.aimealplanner.entities.planing.MealPlan;
+import org.dci.aimealplanner.entities.planning.MealPlan;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

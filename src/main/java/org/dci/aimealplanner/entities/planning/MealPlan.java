@@ -1,4 +1,4 @@
-package org.dci.aimealplanner.entities.planing;
+package org.dci.aimealplanner.entities.planning;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

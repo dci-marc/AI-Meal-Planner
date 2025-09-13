@@ -72,4 +72,12 @@ public class UserInformationService {
             }
         });
     }
+
+    public UserInformation getByUserId(Long userId) {
+        return userInformationRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
+    }
+
+    public UserInformation getUserInformationByUser(User currectUser) {
+        return userInformationRepository.findByUser(currectUser).orElseThrow(() -> new IllegalArgumentException("User not found"));
+    }
 }

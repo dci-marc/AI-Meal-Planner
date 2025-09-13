@@ -35,4 +35,7 @@ public class UnitService {
         return unitsByCode;
     }
 
+    public Unit save(Unit newUnit) {
+        return unitRepository.save(newUnit);
+    }
 }
