@@ -13,13 +13,9 @@ import org.dci.aimealplanner.integration.aiapi.dtos.recipes.RecipeFromAI;
 import org.dci.aimealplanner.models.Difficulty;
 import org.dci.aimealplanner.models.SourceType;
 import org.dci.aimealplanner.models.recipes.UpdateRecipeDTO;
-import org.dci.aimealplanner.repositories.recipes.RecipeIngredientRepository;
 import org.dci.aimealplanner.repositories.recipes.RecipeRepository;
-import org.dci.aimealplanner.services.ingredients.IngredientLookupService;
-import org.dci.aimealplanner.services.ingredients.IngredientUnitRatioService;
+import org.dci.aimealplanner.services.ingredients.*;
 import org.dci.aimealplanner.services.utils.CloudinaryService;
-import org.dci.aimealplanner.services.ingredients.IngredientService;
-import org.dci.aimealplanner.services.ingredients.UnitService;
 import org.dci.aimealplanner.services.users.UserService;
 import org.dci.aimealplanner.specifications.RecipeSpecification;
 import org.springframework.data.domain.Page;
@@ -44,10 +40,10 @@ public class RecipeService {
     private final UserService userService;
     private final UnitService unitService;
     private final IngredientService ingredientService;
-    private final RecipeIngredientRepository recipeIngredientRepository;
     private final IngredientLookupService lookup;
     private final MealCategoryService mealCategoryService;
     private final IngredientUnitRatioService ingredientUnitRatioService;
+    private final IngredientResolverService ingredientResolverService;
 
     @Transactional
     public Recipe addNewRecipe(UpdateRecipeDTO recipeDTO, MultipartFile imageFile, String email) {
@@ -200,28 +196,60 @@ public class RecipeService {
     @Transactional
     public Recipe saveFromAI(RecipeFromAI recipeFromAI, String email) {
         Recipe recipe = recipeFromAI.toRecipeSkeleton();
-        recipe.setIngredients(new ArrayList<>());
 
-        for (var line : recipeFromAI.getIngredients()) {
-            RecipeIngredient ri = line.toRecipeIngredient(lookup);
-            ri.setRecipe(recipe);
-            recipe.getIngredients().add(ri);
+        if (recipe.getIngredients() == null) {
+            recipe.setIngredients(new ArrayList<>());
+        } else {
+            recipe.getIngredients().clear();
         }
 
+        if (recipeFromAI.getIngredients() != null) {
+            for (var line : recipeFromAI.getIngredients()) {
+                BigDecimal amt = line.getAmount();
+                if (amt == null || amt.compareTo(new BigDecimal("0.001")) < 0) {
+                    continue;
+                }
+
+                Ingredient ingredient = ingredientResolverService.resolveOrCreate(line.getName());
+                Unit unit = ingredientResolverService.ensureUnit(line.getUnitCode(), null);
+
+                RecipeIngredient ri = new RecipeIngredient();
+                ri.setRecipe(recipe);
+                ri.setIngredient(ingredient);
+                ri.setUnit(unit);
+                ri.setAmount(amt);
+
+                recipe.getIngredients().add(ri);
+            }
+        }
+
+        if (recipe.getMealCategories() == null) {
+            recipe.setMealCategories(new java.util.HashSet<>());
+        }
+        MealCategory unknownCat = null;
+        try { unknownCat = mealCategoryService.findByName("Unknown"); } catch (RuntimeException ignored) {}
+
         if (recipeFromAI.getMealCategories() != null) {
-            for (String catName : recipeFromAI.getMealCategories()) {
-                MealCategory category = mealCategoryService.findByName(catName);
-                recipe.getMealCategories().add(category);
+            for (String raw : recipeFromAI.getMealCategories()) {
+                if (raw == null || raw.isBlank()) continue;
+                String name = raw.trim();
+                MealCategory cat = null;
+                try { cat = mealCategoryService.findByName(name); } catch (RuntimeException ignored) {}
+                if (cat != null) recipe.getMealCategories().add(cat);
+                else if (unknownCat != null) recipe.getMealCategories().add(unknownCat);
             }
         }
 
         recipe.setAuthor(userService.findByEmail(email));
         recipe.setSourceType(SourceType.AI);
 
+        calculateNutritionFacts(recipe);
+
         return recipeRepository.save(recipe);
     }
 
-    @Transactional(readOnly = true)
+
+    @Transactional
     public void calculateNutritionFacts(Recipe recipe) {
         if (recipe == null || recipe.getIngredients() == null || recipe.getIngredients().isEmpty()) {
             recipe.setKcalPerServ(null);
@@ -232,49 +260,45 @@ public class RecipeService {
         }
 
         BigDecimal calories = BigDecimal.ZERO;
-        BigDecimal carbs = BigDecimal.ZERO;
-        BigDecimal fats = BigDecimal.ZERO;
-        BigDecimal protein = BigDecimal.ZERO;
+        BigDecimal carbs    = BigDecimal.ZERO;
+        BigDecimal fats     = BigDecimal.ZERO;
+        BigDecimal protein  = BigDecimal.ZERO;
 
-        for (RecipeIngredient recipeIngredient : recipe.getIngredients()) {
-            if (recipeIngredient == null || recipeIngredient.getIngredient() == null
-                    || recipeIngredient.getUnit() == null || recipeIngredient.getAmount() == null) {
+        for (RecipeIngredient line : recipe.getIngredients()) {
+            if (line == null || line.getIngredient() == null ||
+                    line.getUnit() == null || line.getAmount() == null) {
                 continue;
             }
 
-            Ingredient ingredient = recipeIngredient.getIngredient();
-            Unit unit =  recipeIngredient.getUnit();
-            NutritionFact nutritionFact = ingredient.getNutritionFact();
-            if (nutritionFact == null) {
-                continue;
-            }
+            NutritionFact nf = line.getIngredient().getNutritionFact();
+            if (nf == null) continue;
 
-            IngredientUnitRatio ingredientUnitRatio = ingredientUnitRatioService.findRatio(ingredient, unit);
-            if (ingredientUnitRatio == null || ingredientUnitRatio.getRatio() == null) {
-                continue;
-            }
+            String code = Optional.ofNullable(line.getUnit().getCode()).orElse("").toLowerCase();
 
-            BigDecimal gramsForLine = recipeIngredient.getAmount()
-                    .multiply(BigDecimal.valueOf(ingredientUnitRatio.getRatio()));
+            BigDecimal gramsForLine;
+            if (code.equals("g") || code.equals("gram") || code.equals("grams")) {
+                gramsForLine = line.getAmount();
+            } else {
+                IngredientUnitRatio iur = ingredientUnitRatioService.findRatio(line.getIngredient(), line.getUnit());
+                if (iur == null || iur.getRatio() == null) continue;
+                gramsForLine = line.getAmount().multiply(BigDecimal.valueOf(iur.getRatio()));
+            }
 
             BigDecimal factor = gramsForLine.divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP);
 
-            if (nutritionFact.getKcal() != null) {
-                calories = calories.add(BigDecimal.valueOf(nutritionFact.getKcal()).multiply(factor));
-            }
-            if (nutritionFact.getProtein() != null) {
-                protein = protein.add(BigDecimal.valueOf(nutritionFact.getProtein()).multiply(factor));
-            }
-            if (nutritionFact.getCarbs() != null) {
-                carbs = carbs.add(BigDecimal.valueOf(nutritionFact.getCarbs()).multiply(factor));
-            }
-            if (nutritionFact.getFat() != null) {
-                fats = fats.add(BigDecimal.valueOf(nutritionFact.getFat()).multiply(factor));
-            }
+            if (nf.getKcal()    != null) calories = calories.add(BigDecimal.valueOf(nf.getKcal()).multiply(factor));
+            if (nf.getProtein() != null) protein  = protein .add(BigDecimal.valueOf(nf.getProtein()).multiply(factor));
+            if (nf.getCarbs()   != null) carbs    = carbs   .add(BigDecimal.valueOf(nf.getCarbs()).multiply(factor));
+            if (nf.getFat()     != null) fats     = fats    .add(BigDecimal.valueOf(nf.getFat()).multiply(factor));
         }
-        recipe.setKcalPerServ(calories);
-        recipe.setProteinPerServ(protein);
-        recipe.setCarbsPerServ(carbs);
-        recipe.setFatPerServ(fats);
+
+        BigDecimal servings = (recipe.getServings() == null || recipe.getServings().compareTo(BigDecimal.ZERO) == 0)
+                ? BigDecimal.ONE : recipe.getServings();
+
+        recipe.setKcalPerServ(calories.divide(servings, 2, RoundingMode.HALF_UP));
+        recipe.setProteinPerServ(protein.divide(servings, 2, RoundingMode.HALF_UP));
+        recipe.setCarbsPerServ(carbs.divide(servings, 2, RoundingMode.HALF_UP));
+        recipe.setFatPerServ(fats.divide(servings, 2, RoundingMode.HALF_UP));
     }
+
 }

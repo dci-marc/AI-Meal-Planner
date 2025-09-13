@@ -90,4 +90,12 @@ public class IngredientCategoryService {
             return ingredientCategoryRepository.save(ingredientCategory);
         }
     }
+
+    public IngredientCategory findByNameIgnoreCase(String catName) {
+        return ingredientCategoryRepository.findByNameIgnoreCase(catName).orElse(null);
+    }
+
+    public IngredientCategory save(IngredientCategory category) {
+        return ingredientCategoryRepository.save(category);
+    }
 }

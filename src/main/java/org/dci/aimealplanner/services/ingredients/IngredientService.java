@@ -99,4 +99,7 @@ public class IngredientService {
         return ingredientRepository.save(ingredient);
     }
 
+    public Ingredient save(Ingredient ingredient) {
+        return ingredientRepository.save(ingredient);
+    }
 }

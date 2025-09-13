@@ -8,6 +8,7 @@ import org.dci.aimealplanner.repositories.ingredients.IngredientUnitRatioReposit
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -67,4 +68,7 @@ public class IngredientUnitRatioService {
         upsert(ingredient, gramUnit, 1.0d);
     }
 
+    public void saveAll(ArrayList<IngredientUnitRatio> ratios) {
+        ingredientUnitRatioRepository.saveAll(ratios);
+    }
 }
