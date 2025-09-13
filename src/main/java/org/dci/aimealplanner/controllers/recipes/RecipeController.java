@@ -9,6 +9,7 @@ import org.dci.aimealplanner.entities.users.User;
 import org.dci.aimealplanner.integration.aiapi.GroqApiClient;
 import org.dci.aimealplanner.integration.aiapi.dtos.recipes.RecipeFromAI;
 import org.dci.aimealplanner.models.Difficulty;
+import org.dci.aimealplanner.models.SourceType;
 import org.dci.aimealplanner.models.recipes.RecipeDTO;
 import org.dci.aimealplanner.models.recipes.RecipeViewDTO;
 import org.dci.aimealplanner.models.recipes.UpdateRecipeDTO;
@@ -56,7 +57,10 @@ public class RecipeController {
                               @RequestParam(defaultValue = "6") int size,
                               Authentication authentication,
                               Model model) {
-        Page<Recipe> recipesPage = recipeService.filterRecipes(title, categoryIds, ingredientIds, preparationTime, difficulty, page, size);
+        Page<Recipe> recipesPage = recipeService.filterRecipes(title,
+                categoryIds, ingredientIds,
+                preparationTime, difficulty,
+                page, size, SourceType.USER);
         model.addAttribute("recipesPage", recipesPage);
         model.addAttribute("currentPage", page);
         model.addAttribute("hasPrevious", recipesPage.hasPrevious());

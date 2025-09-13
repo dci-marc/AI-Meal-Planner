@@ -59,6 +59,7 @@ public class RecipeService {
         }
 
         calculateNutritionFacts(recipe);
+        recipe.setSourceType(SourceType.USER);
 
         return recipeRepository.save(recipe);
     }
@@ -181,12 +182,12 @@ public class RecipeService {
 
     public Page<Recipe> filterRecipes(String title, Set<Long> categoryIds,
                                       Set<Long> ingredientIds, Integer preparationTime,
-                                      Difficulty difficulty, int page, int size) {
+                                      Difficulty difficulty, int page, int size, SourceType sourceType) {
         Specification<Recipe> recipeSpecification = RecipeSpecification.byDifficulty(difficulty).and(
                 RecipeSpecification.byPreparationTimeLessThan(preparationTime).and(
                         RecipeSpecification.byTitleContains(title).and(
                                 RecipeSpecification.byCategoryIds(categoryIds).and(
-                                        RecipeSpecification.byIngredientContains(ingredientIds)))));
+                                        RecipeSpecification.byIngredientContains(ingredientIds)))).and(RecipeSpecification.bySourceType(sourceType)));
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("title").ascending());
 
