@@ -5,6 +5,8 @@ import org.dci.aimealplanner.controllers.auth.AuthUtils;
 import org.dci.aimealplanner.entities.users.DietaryPreference;
 import org.dci.aimealplanner.entities.users.User;
 import org.dci.aimealplanner.entities.users.UserInformation;
+import org.dci.aimealplanner.models.users.UserBasicDTO;
+import org.dci.aimealplanner.models.users.UserCompleteDTO;
 import org.dci.aimealplanner.repositories.users.UserInformationRepository;
 import org.dci.aimealplanner.services.recipes.DietaryPreferenceService;
 import org.springframework.security.core.Authentication;
@@ -79,5 +81,37 @@ public class UserInformationService {
 
     public UserInformation getUserInformationByUser(User currectUser) {
         return userInformationRepository.findByUser(currectUser).orElseThrow(() -> new IllegalArgumentException("User not found"));
+    }
+
+    public UserBasicDTO getUserBasicDTO(Authentication authentication) {
+        User currentUser = getCurrentAuthenticatedUser(authentication);
+        if (userInformationAlreadyExists(currentUser)) {
+            UserInformation userInformation = getUserInformationByUser(currentUser);
+            return UserBasicDTO.from(currentUser, userInformation);
+        }
+        return UserBasicDTO.from(currentUser, null);
+    }
+
+    public UserBasicDTO getUserBasicDTO(User user) {
+        if (userInformationAlreadyExists(user)) {
+            UserInformation userInformation = getUserInformationByUser(user);
+            return UserBasicDTO.from(user, userInformation);
+        }
+        return UserBasicDTO.from(user, null);
+    }
+
+    public UserCompleteDTO getUserCompleteDTO(Authentication authentication) {
+        User currentUser = getCurrentAuthenticatedUser(authentication);
+        UserInformation userInformation = getUserInformationByUser(currentUser);
+        return UserCompleteDTO.from(currentUser, userInformation);
+
+    }
+
+    public List<UserInformation> userInformationByIdIn(Set<Long> userIds) {
+        return userInformationRepository.findByUser_IdIn(userIds);
+    }
+
+    public boolean userInformationAlreadyExists(User user) {
+        return userInformationRepository.findByUser(user).isPresent();
     }
 }

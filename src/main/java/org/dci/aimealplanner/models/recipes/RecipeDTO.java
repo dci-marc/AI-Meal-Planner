@@ -5,6 +5,7 @@ import org.dci.aimealplanner.entities.recipes.MealCategory;
 import org.dci.aimealplanner.entities.recipes.Recipe;
 import org.dci.aimealplanner.entities.recipes.RecipeIngredient;
 import org.dci.aimealplanner.models.Difficulty;
+import org.dci.aimealplanner.models.SourceType;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -23,7 +24,7 @@ public record RecipeDTO(
 
 ) {
     public static RecipeDTO from(Recipe recipe) {
-        return new RecipeDTO(recipe.getId(),recipe.getTitle(), recipe.getDifficulty(), recipe.getPreparationTimeMinutes(), recipe.getServings(),
+        return new RecipeDTO(recipe.getId(),recipe.getTitle(), recipe.getDifficulty(),recipe.getPreparationTimeMinutes(), recipe.getServings(),
                 recipe.getImage(), recipe.getInstructions(), recipe.getIngredients(), recipe.getMealCategories());
     }
 

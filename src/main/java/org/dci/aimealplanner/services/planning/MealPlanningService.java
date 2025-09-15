@@ -50,29 +50,40 @@ public class MealPlanningService {
     }
 
     @Transactional
-    public MealEntry addEntry(Long userId, AddMealEntryDTO mealEntryDTO) {
-        MealPlan plan = mealPlanRepository.findById(mealEntryDTO.mealPlanId())
+    public MealEntry addEntry(Long userId, AddMealEntryDTO dto) {
+        MealPlan plan = mealPlanRepository.findById(dto.mealPlanId())
                 .orElseThrow(() -> new IllegalArgumentException("Meal plan not found"));
 
         if (!plan.getUser().getId().equals(userId)) {
             throw new IllegalArgumentException("Invalid user id");
         }
 
-        LocalDate date = mealEntryDTO.entryDate();
+        LocalDate date = dto.entryDate();
         if (date == null || date.isBefore(plan.getStartDate()) || date.isAfter(plan.getEndDate())) {
             throw new IllegalArgumentException("Entry date outside the plan range");
         }
+        if (dto.mealSlot() == null) {
+            throw new IllegalArgumentException("Meal slot is required");
+        }
 
-        Recipe recipe = recipeService.findById(mealEntryDTO.recipeId());
+        Recipe recipe = recipeService.findById(dto.recipeId());
 
-        MealEntry mealEntry = new MealEntry();
-        mealEntry.setMealPlan(plan);
-        mealEntry.setEntryDate(date);
-        mealEntry.setMealSlot(mealEntryDTO.mealSlot());
-        mealEntry.setRecipe(recipe);
-        mealEntry.setServings(mealEntryDTO.servings() != null ? mealEntryDTO.servings() : BigDecimal.ONE);
+        BigDecimal servings = dto.servings() == null ? BigDecimal.ONE : dto.servings();
+        if (servings.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Servings must be positive");
+        }
 
-        return mealEntryRepository.save(mealEntry);
+        MealEntry entry = mealEntryRepository
+                .findByMealPlanIdAndEntryDateAndMealSlot(plan.getId(), date, dto.mealSlot())
+                .orElseGet(MealEntry::new);
+
+        entry.setMealPlan(plan);
+        entry.setEntryDate(date);
+        entry.setMealSlot(dto.mealSlot());
+        entry.setRecipe(recipe);
+        entry.setServings(servings);
+
+        return mealEntryRepository.save(entry);
     }
 
     @Transactional
