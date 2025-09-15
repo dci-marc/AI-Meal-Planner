@@ -11,6 +11,7 @@ import org.dci.aimealplanner.models.planning.CreateMealPlanDTO;
 import org.dci.aimealplanner.models.recipes.MealSlot;
 import org.dci.aimealplanner.services.planning.MealPlanAiService;
 import org.dci.aimealplanner.services.planning.MealPlanningService;
+import org.dci.aimealplanner.services.users.UserInformationService;
 import org.dci.aimealplanner.services.users.UserService;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -29,6 +30,7 @@ import java.util.Map;
 public class MealPlanController {
     private final MealPlanningService mealPlanningService;
     private final UserService userService;
+    private final UserInformationService userInformationService;
     private final MealPlanAiService mealPlanAiService;
 
     @GetMapping
@@ -37,6 +39,7 @@ public class MealPlanController {
         User loggedUser = userService.findByEmail(email);
         List<MealPlan> plans = mealPlanningService.listPlansForUser(loggedUser.getId());
         model.addAttribute("plans", plans);
+        model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(loggedUser));
         return "planning/mealplans_list";
     }
 
@@ -54,6 +57,7 @@ public class MealPlanController {
         model.addAttribute("mealPlan", dto);
         model.addAttribute("loggedInUser", loggedUser);
         model.addAttribute("redirectUrl", request.getHeader("Referer"));
+        model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(loggedUser));
         return "planning/mealplan_form";
     }
 
@@ -72,6 +76,7 @@ public class MealPlanController {
             model.addAttribute("mealPlan", createMealPlanDTO);
             model.addAttribute("loggedInUser", loggedUser);
             model.addAttribute("redirectUrl", redirectUrl);
+            model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(loggedUser));
             return "planning/mealplan_form";
         }
         MealPlan plan = mealPlanningService.createPlan(loggedUser.getId(), createMealPlanDTO);
@@ -114,7 +119,7 @@ public class MealPlanController {
             model.addAttribute("addEntry", new AddMealEntryDTO(
                     plan.getId(), plan.getStartDate(), MealSlot.BREAKFAST, null, null
             ));
-            model.addAttribute("loggedInUser", loggedUser);
+            model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(loggedUser));
             model.addAttribute("redirectUrl", request.getHeader("Referer"));
             return "planning/mealplan_detail";
         } catch (Exception e) {

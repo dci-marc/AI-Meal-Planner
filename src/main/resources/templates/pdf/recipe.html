@@ -43,14 +43,32 @@
 <div class="wrap">
     <section class="header">
         <h1 th:text="${recipe.title}">Recipe Title</h1>
+
         <div class="meta">
-            <div><strong>Author:</strong> <span th:text="${author.email}">author@email.com</span></div>
+            <div th:if="${recipe.sourceType == null
+                        or #strings.equalsIgnoreCase(recipe.sourceType.toString(), 'USER')}">
+                <strong>Author:</strong>
+                <span th:text="${
+                    (author != null and (!#strings.isEmpty(author.firstName()) or !#strings.isEmpty(author.lastName())))
+                      ? #strings.trim( (author.firstName() ?: '') + ' ' + (author.lastName() ?: '') )
+                      : (author != null ? author.email() : 'Unknown')
+                }">author@email.com</span>
+            </div>
+
+            <div th:if="${recipe.sourceType != null
+                        and #strings.equalsIgnoreCase(recipe.sourceType.toString(), 'AI')}">
+                <strong>Source:</strong> <span>AI-generated</span>
+            </div>
+
             <div><strong>Difficulty:</strong> <span th:text="${#strings.toLowerCase(recipe.difficulty)}">easy</span></div>
             <div><strong>Prep Time:</strong> <span th:text="${recipe.preparationTimeMinutes + ' min'}">30 min</span></div>
+
             <div th:if="${recipe != null and recipe.servings != null}">
-                <strong>Servings:</strong> <span th:text="${recipe.servings}">2</span>
+                <strong>Servings:</strong>
+                <span th:text="${recipe.servings.stripTrailingZeros().toPlainString()}">2</span>
             </div>
         </div>
+
         <div class="badges">
             <span class="badge" th:each="cat : ${recipe.mealCategories}" th:text="${cat.name}">Category</span>
         </div>
@@ -66,7 +84,11 @@
                 <h2>Ingredients</h2>
                 <ul class="list ingredients">
                     <li th:each="ri : ${recipe.ingredients}"
-                        th:text="${ri.amount + ' ' + ri.unit.displayName + ' ' + ri.ingredient.name}">
+                        th:with="amt=${ri.amount != null ? ri.amount.stripTrailingZeros().toPlainString() : ''},
+                                 unitText=${ri.unit != null ? ri.unit.displayName : ''}"
+                        th:text="${(amt != '' ? amt + ' ' : '')
+                                   + (unitText != '' ? unitText + ' ' : '')
+                                   + ri.ingredient.name}">
                         200 g example ingredient
                     </li>
                 </ul>
@@ -83,30 +105,36 @@
             <div class="card">
                 <h2>Nutrition Facts</h2>
                 <p class="subtle">Calculated from ingredient amounts
-                    <span th:if="${recipe != null and recipe.servings != null}"> • Servings: <strong th:text="${recipe.servings}"></strong></span>
+                    <span th:if="${recipe != null and recipe.servings != null}">
+                        • Servings: <strong th:text="${recipe.servings}"></strong>
+                    </span>
                 </p>
                 <div class="facts">
                     <div class="fact">
                         <div class="value">
-                            <span th:text="${recipe.kcalPerServ ?: '—'}">—</span><span class="unit" th:if="${recipe.kcalPerServ != null}">kcal</span>
+                            <span th:text="${recipe.kcalPerServ ?: '—'}">—</span>
+                            <span class="unit" th:if="${recipe.kcalPerServ != null}">kcal</span>
                         </div>
                         <div class="label">Energy</div>
                     </div>
                     <div class="fact">
                         <div class="value">
-                            <span th:text="${recipe.proteinPerServ ?: '—'}">—</span><span class="unit" th:if="${recipe.proteinPerServ != null}">g</span>
+                            <span th:text="${recipe.proteinPerServ ?: '—'}">—</span>
+                            <span class="unit" th:if="${recipe.proteinPerServ != null}">g</span>
                         </div>
                         <div class="label">Protein</div>
                     </div>
                     <div class="fact">
                         <div class="value">
-                            <span th:text="${recipe.carbsPerServ ?: '—'}">—</span><span class="unit" th:if="${recipe.carbsPerServ != null}">g</span>
+                            <span th:text="${recipe.carbsPerServ ?: '—'}">—</span>
+                            <span class="unit" th:if="${recipe.carbsPerServ != null}">g</span>
                         </div>
                         <div class="label">Carbs</div>
                     </div>
                     <div class="fact">
                         <div class="value">
-                            <span th:text="${recipe.fatPerServ ?: '—'}">—</span><span class="unit" th:if="${recipe.fatPerServ != null}">g</span>
+                            <span th:text="${recipe.fatPerServ ?: '—'}">—</span>
+                            <span class="unit" th:if="${recipe.fatPerServ != null}">g</span>
                         </div>
                         <div class="label">Fat</div>
                     </div>

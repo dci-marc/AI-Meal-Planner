@@ -4,6 +4,7 @@ import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.entities.recipes.Recipe;
 import org.dci.aimealplanner.entities.users.User;
+import org.dci.aimealplanner.models.users.UserBasicDTO;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.context.Context;
@@ -17,7 +18,7 @@ import java.io.ByteArrayOutputStream;
 public class PdfService {
     private final SpringTemplateEngine templateEngine;
 
-    public byte[] generatePdf(Recipe recipe, User author) {
+    public byte[] generatePdf(Recipe recipe, UserBasicDTO author) {
         Context context = new Context();
         context.setVariable("recipe", recipe);
         context.setVariable("author", author);
