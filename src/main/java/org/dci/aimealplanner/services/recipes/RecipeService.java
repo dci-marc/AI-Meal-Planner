@@ -12,6 +12,7 @@ import org.dci.aimealplanner.entities.recipes.RecipeIngredient;
 import org.dci.aimealplanner.integration.aiapi.dtos.recipes.RecipeFromAI;
 import org.dci.aimealplanner.models.Difficulty;
 import org.dci.aimealplanner.models.SourceType;
+import org.dci.aimealplanner.models.recipes.RecipeCardDTO;
 import org.dci.aimealplanner.models.recipes.UpdateRecipeDTO;
 import org.dci.aimealplanner.repositories.recipes.RecipeRepository;
 import org.dci.aimealplanner.services.ingredients.*;
@@ -50,6 +51,8 @@ public class RecipeService {
         List<RecipeIngredient> recipeIngredients = normalizeAndResolveIngredients(recipeDTO);
         Recipe recipe = new Recipe();
         updateRecipeFields(recipe, recipeDTO, imageFile, email);
+
+        recipe.setFeatured(false);
 
         if (recipeIngredients != null) {
             for (RecipeIngredient recipeIngredient : recipeIngredients) {
@@ -160,6 +163,11 @@ public class RecipeService {
         recipe.setInstructions(recipeDTO.instructions());
         recipe.setMealCategories(recipeDTO.mealCategories());
 
+        Boolean featuredFromDto = extractFeaturedFlag(recipeDTO);
+        if (featuredFromDto != null) {
+            recipe.setFeatured(featuredFromDto);
+        }
+
         if (!imageFile.isEmpty()) {
             Map<String, String> uploadedData = cloudinaryService.upload(imageFile);
 
@@ -197,6 +205,8 @@ public class RecipeService {
     @Transactional
     public Recipe saveFromAI(RecipeFromAI recipeFromAI, String email) {
         Recipe recipe = recipeFromAI.toRecipeSkeleton();
+
+        recipe.setFeatured(false);
 
         if (recipe.getIngredients() == null) {
             recipe.setIngredients(new ArrayList<>());
@@ -300,6 +310,53 @@ public class RecipeService {
         recipe.setProteinPerServ(protein.divide(servings, 2, RoundingMode.HALF_UP));
         recipe.setCarbsPerServ(carbs.divide(servings, 2, RoundingMode.HALF_UP));
         recipe.setFatPerServ(fats.divide(servings, 2, RoundingMode.HALF_UP));
+    }
+
+    private Boolean extractFeaturedFlag(Object dto) {
+        try {
+            var m = dto.getClass().getMethod("featured");
+            Object v = m.invoke(dto);
+            if (v instanceof Boolean b) return b;
+        } catch (Exception ignored) {}
+        try {
+            var m = dto.getClass().getMethod("isFeatured");
+            Object v = m.invoke(dto);
+            if (v instanceof Boolean b) return b;
+        } catch (Exception ignored) {}
+        try {
+
+            var m = dto.getClass().getMethod("getFeatured");
+            Object v = m.invoke(dto);
+            if (v instanceof Boolean b) return b;
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    public List<RecipeCardDTO> getFeaturedForHomepage(int limit) {
+        return recipeRepository.featuredOrNewest(Math.max(1, Math.min(limit, 12)))
+                .stream()
+                .map(this::toCard)
+                .toList();
+    }
+
+    private RecipeCardDTO toCard(Recipe recipe) {
+        String heroImageUrl = (recipe.getImage() != null) ? recipe.getImage().getImageUrl() : null;
+
+        java.math.BigDecimal perServing = null;
+        if (recipe.getKcalPerServ() != null) {
+            var servings = (recipe.getServings() == null || recipe.getServings().compareTo(java.math.BigDecimal.ZERO) <= 0)
+                    ? java.math.BigDecimal.ONE
+                    : recipe.getServings();
+            perServing = recipe.getKcalPerServ().divide(servings, 0, java.math.RoundingMode.HALF_UP);
+        }
+
+        return new RecipeCardDTO(
+                recipe.getId(),
+                recipe.getTitle(),
+                heroImageUrl,
+                recipe.getPreparationTimeMinutes(),
+                perServing
+        );
     }
 
 }

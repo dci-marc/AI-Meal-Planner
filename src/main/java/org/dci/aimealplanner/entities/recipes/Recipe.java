@@ -65,6 +65,9 @@ public class Recipe {
     @JoinColumn(name = "author_id", nullable = true)
     private User author;
 
+    @Column(nullable = false)
+    private boolean featured = false;
+
     @OneToMany(mappedBy = "recipe", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RecipeIngredient> ingredients = new ArrayList<>();
 
