@@ -44,4 +44,23 @@ public class EmailService {
             return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
+
+    public void sendPasswordResetEmail(String email, String link, Long ttlMinutes) {
+        long ttl = ttlMinutes != null ? ttlMinutes : 120L;
+        try {
+            String html = loadHtmlTemplate("emails/password-reset-email.html");
+            html = html
+                    .replace("{{RESET_URL}}", link)
+                    .replace("{{TTL_MINUTES}}", String.valueOf(ttl));
+
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
+            helper.setTo(email);
+            helper.setSubject("Reset your password");
+            helper.setText(html, true);
+            mailSender.send(mimeMessage);
+        } catch (IOException | MessagingException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

@@ -1,4 +1,4 @@
-package org.dci.aimealplanner.repositories;
+package org.dci.aimealplanner.repositories.uploads;
 
 import org.dci.aimealplanner.entities.ImageMetaData;
 import org.springframework.data.jpa.repository.JpaRepository;
