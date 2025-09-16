@@ -71,7 +71,13 @@
 
             <div th:if="${loggedInUser != null}">
                 <div class="hero-kicker small mb-2">welcome back</div>
-                <h1 class="h3 fw-bold mb-2" th:text="'Hi, ' + ${loggedInUser.firstName()} + ' 👋'">Hi, Maryam 👋</h1>
+                <h1 class="h3 fw-bold mb-2"
+                    th:text="${'Hi, ' + ( (loggedInUser.firstName() != null and !#strings.isEmpty(loggedInUser.firstName()))
+              ? loggedInUser.firstName()
+              : loggedInUser.email() ) + ' 👋'}">
+                    Hi, Maryam 👋
+                </h1>
+
                 <p class="mb-3">Pick up where you left off or ask AI for fresh ideas.</p>
                 <div class="hero-cta">
                     <a href="/meal-plans" class="btn btn-primary">Open my meal plan</a>
