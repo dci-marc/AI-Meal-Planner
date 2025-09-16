@@ -21,7 +21,6 @@
         .section-card .card-header { background:transparent; border-bottom:1px solid rgba(0,0,0,.06); font-weight:700; }
         .with-nav-offset { padding-top:.75rem; }
 
-        /* typeahead */
         .typeahead-wrap { position: relative; }
         .typeahead-results {
             position:absolute; top:100%; left:0; right:0; z-index: 1050;
@@ -73,7 +72,6 @@
     <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
     <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
 
-    <!-- Add entry -->
     <div class="section-card mb-4">
         <div class="card-header">Add to this plan</div>
         <div class="card-body">
@@ -115,7 +113,6 @@
                     <button class="btn btn-success">Add entry</button>
                 </div>
 
-                <!-- Put the note on its own full-width row so columns stay aligned -->
                 <div class="col-12">
                     <small class="text-muted">
                         Note: If the selected date already has this meal slot, it will be <strong>replaced</strong>.
@@ -125,9 +122,16 @@
         </div>
     </div>
 
-    <div th:if="${#maps.isEmpty(entriesByDate)}" class="alert alert-info">
-        This plan has no entries yet. Use <strong>Add to this plan</strong> above.
+    <div th:if="${#maps.isEmpty(entriesByDate)}" class="alert alert-info d-flex align-items-center justify-content-between">
+        <div>
+            This plan has no entries yet. Use <strong>Add to this plan</strong> above
+            or let AI generate a starter plan.
+        </div>
+        <form th:action="@{|/meal-plans/${mealPlan.id}/ai-populate|}" method="post" class="ms-3">
+            <button class="btn btn-sm btn-primary">Populate with AI</button>
+        </form>
     </div>
+
 
     <div th:each="entry : ${entriesByDate.entrySet()}">
         <h5 class="mt-4"
@@ -145,7 +149,7 @@
                            th:href="@{|/recipes/${meal.recipe.id}|}"
                            th:text="${meal.recipe.title}">Recipe title</a>
                         <span class="text-muted ms-2" th:if="${meal.servings != null}">
-                          · <span th:text="${meal.servings}">1</span> serving(s)
+                          · <span th:text="${meal.servings.stripTrailingZeros().toPlainString()}">1</span> serving(s)
                         </span>
                     </div>
                     <form th:action="@{|/meal-plans/entries/${meal.id}/delete|}" method="post" class="ms-3">

@@ -2,18 +2,222 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Home</title>
+    <title>Home • AI Meal Planner</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/navigation_tab_styles.css">
+    <style>
+        .hero-wrap{
+            position:relative;
+            min-height:360px;
+            background:url('/images/hero.jpg') center/cover no-repeat;
+            border-radius: .75rem;
+            overflow:hidden;
+        }
+        .hero-overlay{
+            position:absolute; inset:0;
+            background:linear-gradient(90deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,.25) 55%, rgba(0,0,0,0) 100%);
+        }
+        .hero-content{
+            position:relative; z-index:2;
+            color:#fff;
+            max-width:680px;
+            padding:2rem;
+        }
+        .hero-kicker{ letter-spacing:.08em; text-transform:uppercase; opacity:.9 }
+        .hero-cta .btn{ margin-right:.5rem }
+
+        .recipe-card-img{
+            width:100%;
+            height:200px;
+            object-fit:cover;
+            border-top-left-radius:.5rem;
+            border-top-right-radius:.5rem;
+        }
+        .next-meal-thumb{
+            width:100%;
+            height:120px;
+            object-fit:cover;
+            border-top-left-radius:.5rem;
+            border-bottom-left-radius:.5rem;
+        }
+
+        .lock-overlay{
+            position:absolute; inset:0;
+            background:rgba(255,255,255,.75);
+            display:flex; align-items:center; justify-content:center;
+            border-radius:.5rem;
+        }
+    </style>
 </head>
 <body class="bg-light">
+
 <div th:replace="~{/fragments/navigation_tab :: navigation}"></div>
 
-<main class="container py-4">
-    <h1 class="mb-3">Welcome</h1>
-    <p class="text-muted">This is the homepage content.</p>
-</main>
+<section class="container py-4">
+    <div class="hero-wrap shadow-sm">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <div th:if="${loggedInUser == null}">
+                <div class="hero-kicker small mb-2">ai meal planner</div>
+                <h1 class="h2 fw-bold mb-2">Plan tasty, balanced meals in minutes</h1>
+                <p class="mb-3">AI-generated weekly plans, nutrition per serving, and grocery-friendly recipes your family will love.</p>
+                <div class="hero-cta">
+                    <a href="/auth/register" class="btn btn-success">Get started free</a>
+                    <a href="/recipes" class="btn btn-outline-light">Browse recipes</a>
+                </div>
+                <div class="small mt-2" style="opacity:.8">No credit card needed • Cancel anytime</div>
+            </div>
+
+            <div th:if="${loggedInUser != null}">
+                <div class="hero-kicker small mb-2">welcome back</div>
+                <h1 class="h3 fw-bold mb-2" th:text="'Hi, ' + ${loggedInUser.firstName()} + ' 👋'">Hi, Maryam 👋</h1>
+                <p class="mb-3">Pick up where you left off or ask AI for fresh ideas.</p>
+                <div class="hero-cta">
+                    <a href="/meal-plans" class="btn btn-primary">Open my meal plan</a>
+                    <a href="/recipes/ask-ai" class="btn btn-outline-light">Ask AI</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="container py-4" th:if="${loggedInUser == null}">
+    <div class="row g-3">
+        <div class="col-12 col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title mb-1">AI meal plans</h5>
+                    <p class="text-muted small mb-0">Tell us your preferences and get a balanced weekly plan in seconds.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title mb-1">Nutrition per serving</h5>
+                    <p class="text-muted small mb-0">Clear kcal/macros per serving for every recipe—no guesswork.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title mb-1">Family-friendly</h5>
+                    <p class="text-muted small mb-0">Fast, budget-friendly options your kids will actually eat.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="m-0">Featured Recipes</h2>
+        <a class="btn btn-outline-primary btn-sm" href="/recipes">View all recipes</a>
+    </div>
+
+    <div th:if="${#lists.isEmpty(featuredRecipes)}" class="alert alert-info">
+        No featured recipes yet. Check back soon!
+    </div>
+
+    <div class="row g-3" th:if="${!#lists.isEmpty(featuredRecipes)}">
+        <div class="col-12 col-sm-6 col-lg-4" th:each="r : ${featuredRecipes}">
+            <a class="text-decoration-none" th:href="@{/recipes/{id}(id=${r.id})}">
+                <div class="card h-100">
+                    <img th:if="${r.heroImageUrl}" th:src="${r.heroImageUrl}" class="recipe-card-img" alt="">
+                    <div class="card-body">
+                        <h5 class="card-title mb-2" th:text="${r.title}">Recipe title</h5>
+                        <p class="text-muted mb-0 small">
+                            <span th:text="${r.preparationTimeMinutes}">30</span> min
+                            <span th:if="${r.kcalPerServ() != null}">
+                • <span th:text="${#numbers.formatDecimal(r.kcalPerServ(), 0, 'POINT', 0, 'NONE')}">450</span> kcal / serving
+              </span>
+                        </p>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+</section>
+
+<section class="container py-4" th:if="${loggedInUser != null}">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="m-0">Your Next Meals</h2>
+        <a class="btn btn-outline-secondary btn-sm" href="/meal-plans">Open meal plans</a>
+    </div>
+
+    <div th:if="${#lists.isEmpty(nextMeals)}" class="alert alert-light border">
+        No upcoming meals. <a href="/meal-plans" class="alert-link">Generate a plan</a> to get started.
+    </div>
+
+    <div class="row g-3" th:if="${!#lists.isEmpty(nextMeals)}">
+        <div class="col-12 col-md-6" th:each="m : ${nextMeals}">
+            <div class="card h-100">
+                <div class="row g-0 align-items-center">
+                    <div class="col-4">
+                        <img th:if="${m.recipe.heroImageUrl}" th:src="${m.recipe.heroImageUrl}" alt="" class="next-meal-thumb">
+                    </div>
+                    <div class="col-8">
+                        <div class="card-body py-3">
+                            <div class="small text-muted">
+                                <span th:text="${m.date}">2025-09-16</span> •
+                                <span th:text="${m.mealSlot}">DINNER</span>
+                            </div>
+                            <a th:href="@{/recipes/{id}(id=${m.recipe.id})}" class="stretched-link text-decoration-none">
+                                <h6 class="card-title mb-1" th:text="${m.recipe.title}">Recipe title</h6>
+                            </a>
+                            <div class="small text-muted">
+                                <span th:text="${m.recipe.preparationTimeMinutes}">30</span> min
+                                <span th:if="${m.recipe.kcalPerServ() != null}">
+                  • <span th:text="${#numbers.formatDecimal(m.recipe.kcalPerServ(), 0, 'POINT', 0, 'NONE')}">450</span> kcal / serving
+                </span>
+                                • Servings: <span th:text="${m.servings}">1</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="container py-4">
+    <div class="row g-3">
+        <div class="col-12 col-md-6">
+            <div class="card h-100 border-success position-relative">
+                <a th:if="${loggedInUser != null}" href="/recipes/ask-ai" class="stretched-link" aria-label="Ask AI"></a>
+                <div class="card-body d-flex align-items-center justify-content-between">
+                    <div>
+                        <h5 class="card-title mb-1">Not sure what to cook?</h5>
+                        <p class="text-muted mb-0 small">Ask AI for ideas based on what you like.</p>
+                    </div>
+                    <span class="fs-3" aria-hidden="true">🤖</span>
+                </div>
+                <div th:if="${loggedInUser == null}" class="lock-overlay">
+                    <a href="/auth/login" class="btn btn-outline-secondary btn-sm">Sign in to use</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Recipe -->
+        <div class="col-12 col-md-6">
+            <div class="card h-100 border-primary position-relative">
+                <a th:if="${loggedInUser != null}" href="/recipes/new" class="stretched-link" aria-label="Add Recipe"></a>
+                <div class="card-body d-flex align-items-center justify-content-between">
+                    <div>
+                        <h5 class="card-title mb-1">Add your recipe</h5>
+                        <p class="text-muted mb-0 small">Share a favorite and keep it organized.</p>
+                    </div>
+                    <span class="fs-3" aria-hidden="true">➕</span>
+                </div>
+                <div th:if="${loggedInUser == null}" class="lock-overlay">
+                    <a href="/auth/login" class="btn btn-outline-secondary btn-sm">Sign in to use</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/js/admin_dashboard/scripts.js"></script>

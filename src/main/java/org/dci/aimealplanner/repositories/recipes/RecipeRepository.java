@@ -23,4 +23,27 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long>, JpaSpecif
     Page<Recipe> searchForPlanner(@Param("q") String q,
                                   @Param("userId") Long userId,
                                   Pageable pageable);
+
+    @Query("""
+           SELECT r FROM Recipe r
+           WHERE r.featured = true
+           ORDER BY 
+               CASE WHEN r.image IS NOT NULL THEN 0 ELSE 1 END,
+               r.id DESC
+           """)
+    List<Recipe> findFeatured(Pageable pageable);
+
+    @Query("""
+           SELECT r FROM Recipe r
+           ORDER BY 
+               CASE WHEN r.image IS NOT NULL THEN 0 ELSE 1 END,
+               r.id DESC
+           """)
+    List<Recipe> findNewest(Pageable pageable);
+
+    default List<Recipe> featuredOrNewest(int limit) {
+        var p = org.springframework.data.domain.PageRequest.of(0, limit);
+        var picks = findFeatured(p);
+        return picks.isEmpty() ? findNewest(p) : picks;
+    }
 }
