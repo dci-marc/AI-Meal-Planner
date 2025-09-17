@@ -10,6 +10,8 @@ import org.dci.aimealplanner.entities.ImageMetaData;
 import org.dci.aimealplanner.entities.users.User;
 import org.dci.aimealplanner.models.Difficulty;
 import org.dci.aimealplanner.models.SourceType;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 
 import java.math.BigDecimal;
@@ -78,4 +80,12 @@ public class Recipe {
             inverseJoinColumns = @JoinColumn(name = "meal_category_id")
     )
     private Set<MealCategory> mealCategories = new HashSet<>();
+
+    @Column(name = "created_at", updatable = false)
+    @CreationTimestamp
+    private java.time.OffsetDateTime createdAt;
+
+    @Column(name = "updated_at")
+    @UpdateTimestamp
+    private java.time.OffsetDateTime updatedAt;
 }

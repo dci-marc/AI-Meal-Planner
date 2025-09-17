@@ -8,6 +8,7 @@ import lombok.Setter;
 import org.dci.aimealplanner.models.ActivityLevel;
 import org.dci.aimealplanner.models.Goal;
 import org.dci.aimealplanner.models.Gender;
+import org.springframework.format.annotation.DateTimeFormat;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -28,6 +29,8 @@ public class UserInformation {
     private String firstName;
     private String lastName;
     private Integer age;
+
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate birthDate;
 
     @Enumerated(EnumType.STRING)

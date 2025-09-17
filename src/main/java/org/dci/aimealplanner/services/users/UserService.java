@@ -123,4 +123,82 @@ public class UserService implements UserDetailsService {
         return userRepository.findByRole(Role.ADMIN).isPresent();
     }
 
+    @Transactional
+    public void changeEmail(Long userId, String currentPassword, String newEmail) {
+        User user = findById(userId);
+
+        if (user.getUserType() != UserType.LOCAL) {
+            throw new IllegalStateException("Email changes are managed by Google for this account.");
+        }
+
+        if (user.getPassword() == null || !passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new IllegalArgumentException("Current password is incorrect.");
+        }
+
+        String normalized = normalize(newEmail);
+        if (normalized == null || normalized.isBlank()) {
+            throw new IllegalArgumentException("New email is required.");
+        }
+        if (normalized.equalsIgnoreCase(user.getEmail())) {
+            throw new IllegalArgumentException("New email must be different from the current email.");
+        }
+        if (!emailIsNotTaken(normalized)) {
+            throw new EmailAlreadyTaken("Email: %s is already taken.".formatted(normalized));
+        }
+
+        user.setEmail(normalized);
+        user.setEmailVerified(false);
+        sendVerificationToken(user);
+    }
+
+    @Transactional
+    public void changePassword(Long userId, String currentPassword, String newPassword) {
+        User user = findById(userId);
+
+        if (user.getUserType() != UserType.LOCAL) {
+            throw new IllegalStateException("Password changes are managed by Google for this account.");
+        }
+        if (user.getPassword() == null || !passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new IllegalArgumentException("Current password is incorrect.");
+        }
+        checkPasswordValidity(newPassword);
+        user.setPassword(passwordEncoder.encode(newPassword));
+        update(user);
+    }
+
+    @Transactional
+    public void setLocalPassword(Long userId, String newPassword) {
+        User user = findById(userId);
+
+        if (user.getUserType() != UserType.GOOGLE) {
+            throw new IllegalStateException("This action is only for Google-linked accounts.");
+        }
+
+        checkPasswordValidity(newPassword);
+        user.setPassword(passwordEncoder.encode(newPassword));
+        update(user);
+    }
+
+    @Transactional
+    public void unlinkGoogle(Long userId) {
+        User user = findById(userId);
+
+        if (user.getUserType() != UserType.GOOGLE) {
+            throw new IllegalStateException("This account is not linked to Google.");
+        }
+        if (user.getPassword() == null || user.getPassword().isBlank()) {
+            throw new IllegalStateException("Set a local password before disconnecting Google.");
+        }
+
+        user.setUserType(UserType.LOCAL);
+        update(user);
+    }
+
+    @Transactional
+    public void switchUserType(Long userId, UserType newType) {
+        User user = findById(userId);
+        user.setUserType(newType);
+        update(user);
+    }
+
 }

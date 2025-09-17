@@ -46,21 +46,28 @@ public class UserInformationService {
             throw new IllegalArgumentException("Birth date cannot be in the future.");
         }
 
-        if (dietaryPreferenceIds != null && !dietaryPreferenceIds.isEmpty()) {
-            Set<DietaryPreference> prefs =
-                    new HashSet<>(dietaryPreferenceService.findAllByIds(dietaryPreferenceIds));
-            userInformation.setDietaryPreferences(prefs);
-        } else {
-            userInformation.getDietaryPreferences().clear();
+        Optional<UserInformation> existingOpt = userInformationRepository.findByUser(currentUser);
+        UserInformation target = existingOpt.orElseGet(() -> {
+            userInformation.setUser(currentUser);
+            return userInformation;
+        });
+
+        if (existingOpt.isPresent()) {
+            userInformation.setId(existingOpt.get().getId());
+            userInformation.setUser(existingOpt.get().getUser());
         }
 
-        Optional<UserInformation> existing = userInformationRepository.findByUser(currentUser);
-        if (existing.isPresent()) {
-            UserInformation existingInfo = existing.get();
-            userInformation.setId(existingInfo.getId());
-            userInformation.setUser(existingInfo.getUser());
+        if (dietaryPreferenceIds != null) {
+            Set<DietaryPreference> newPrefs = dietaryPreferenceIds.isEmpty()
+                    ? new HashSet<>()
+                    : new HashSet<>(dietaryPreferenceService.findAllByIds(dietaryPreferenceIds));
+            userInformation.setDietaryPreferences(newPrefs);
         } else {
-            userInformation.setUser(currentUser);
+            if (userInformation.getDietaryPreferences() == null) {
+                userInformation.setDietaryPreferences(
+                        existingOpt.map(UserInformation::getDietaryPreferences).orElseGet(HashSet::new)
+                );
+            }
         }
 
         return userInformationRepository.save(userInformation);

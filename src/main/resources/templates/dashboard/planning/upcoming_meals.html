@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Upcoming Meals • AI Meal Planner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/css/navigation_tab_styles.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background:#f6f8fb; }
+        .wrap { max-width: 1100px; }
+        .section-title { font-weight:800; letter-spacing:.2px; color:#0f172a; }
+
+        .meal-card { background:#fff; border:1px solid rgba(0,0,0,.06); border-radius:16px; box-shadow:0 6px 20px rgba(0,0,0,.06); overflow:hidden; }
+        .meal-img { width:100%; height:180px; object-fit:cover; background:#eef1f5; }
+        .meal-fallback { width:100%; height:180px; background:#eef1f5; display:flex; align-items:center; justify-content:center; }
+        .meal-fallback i { font-size:48px; color:#7c8ca1; }
+        .meal-body { padding:16px; }
+        .meal-title { font-size:1.1rem; font-weight:700; margin:0; }
+        .meal-meta { font-size:.9rem; color:#6c757d; }
+    </style>
+</head>
+<body>
+<div th:replace="~{/fragments/navigation_tab :: navigation}"></div>
+
+<main class="wrap container py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="section-title h4 mb-0">Upcoming Meals</h1>
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="history.back()">Back to Meal Management</button>
+    </div>
+
+    <div class="row g-4" th:if="${nextMeals != null and !#lists.isEmpty(nextMeals)}">
+        <div class="col-12 col-md-6 col-lg-4" th:each="m : ${nextMeals}">
+            <div class="meal-card h-100">
+
+                <img th:if="${m.recipe.heroImageUrl() != null and !#strings.isEmpty(m.recipe.heroImageUrl())}"
+                     class="meal-img"
+                     th:src="${m.recipe.heroImageUrl()}"
+                     alt="Meal image">
+
+                <div th:if="${m.recipe.heroImageUrl() == null or #strings.isEmpty(m.recipe.heroImageUrl())}"
+                     class="meal-fallback" aria-hidden="true">
+                    <th:block th:switch="${#strings.toUpperCase(m.mealSlot)}">
+                        <i class="bi bi-cup-hot"   th:case="'BREAKFAST'"></i>
+                        <i class="bi bi-egg-fried" th:case="'LUNCH'"></i>
+                        <i class="bi bi-cup-straw"      th:case="'DINNER'"></i>
+                        <i class="bi bi-basket"    th:case="*"></i>
+                    </th:block>
+                </div>
+
+                <div class="meal-body">
+                    <div class="meal-meta mb-1">
+                        <span th:text="${#temporals.format(m.date,'EEE, d MMM')}">Wed, 17 Sep</span>
+                        • <span th:text="${#strings.capitalize(m.mealSlot)}">Lunch</span>
+                    </div>
+
+                    <h2 class="meal-title text-truncate mb-1">
+                        <a th:href="@{'/recipes/' + ${m.recipe.id}}" class="text-decoration-none">
+                            <span th:text="${m.recipe.title}">Recipe title</span>
+                        </a>
+                    </h2>
+
+                    <div class="meal-meta">
+            <span th:if="${m.recipe.preparationTimeMinutes != null}"
+                  th:text="${m.recipe.preparationTimeMinutes + ' min'}">0 min</span>
+                        <span th:if="${m.recipe.preparationTimeMinutes != null and m.recipe.kcalPerServ != null}"> • </span>
+                        <span th:if="${m.recipe.kcalPerServ != null}"
+                              th:text="${m.recipe.kcalPerServ + ' kcal/serv'}">—</span>
+                    </div>
+
+                    <div class="meal-meta">
+                        Servings: <span th:text="${m.servings.stripTrailingZeros().toPlainString()}">1</span>
+                    </div>
+
+                    <div class="mt-3 d-flex gap-2">
+                        <a th:href="@{'/recipes/' + ${m.recipe.id}}" class="btn btn-sm btn-primary">Open recipe</a>
+                        <a th:href="@{'/meal-plans'(focusDate=${m.date})}" class="btn btn-sm btn-outline-secondary">View day</a>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center text-muted py-5"
+         th:if="${nextMeals == null or #lists.isEmpty(nextMeals)}">
+        <p class="mb-2">You don’t have any upcoming meals scheduled.</p>
+        <a href="/meal-plans/new" class="btn btn-primary">Create a Meal Plan</a>
+    </div>
+
+</main>
+</body>
+</html>
