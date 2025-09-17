@@ -67,6 +67,11 @@
             <a class="btn btn-primary btn-large" th:href="@{/meal-plans/new}">
                 <i class="bi bi-plus-lg me-1"></i> New Plan
             </a>
+            <!-- ✅ Back button -->
+            <a th:if="${backUrl != null}" th:href="${backUrl}"
+               class="btn btn-outline-secondary btn-large">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
         </div>
     </div>
 </header>
@@ -110,7 +115,6 @@
                                 <i class="bi bi-fire"></i>
                                 <span th:text="${p.kcalTargetPerDay}">0</span> kcal/day
                             </span>
-
                         </div>
                     </div>
                 </div>

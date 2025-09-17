@@ -11,6 +11,7 @@ import org.dci.aimealplanner.services.recipes.DietaryPreferenceService;
 import org.dci.aimealplanner.services.users.UserInformationService;
 import org.dci.aimealplanner.services.users.UserService;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -25,16 +26,14 @@ public class ProfileController {
 
     private final UserInformationService userInformationService;
     private final DietaryPreferenceService dietaryPreferenceService;
-    private final UserService userService;
 
     @GetMapping
     public String showProfile(Authentication authentication, Model model) {
-        String email = AuthUtils.getUserEmail(authentication);
         UserInformation info = userInformationService.getUserInformationForCurrentUser(authentication)
                 .orElseGet(UserInformation::new);
 
         model.addAttribute("userInformation", info);
-        prepareFormModel(model, email);
+        prepareFormModel(model, authentication);
         return "profile/user-profile";
     }
 
@@ -44,10 +43,8 @@ public class ProfileController {
                               BindingResult bindingResult,
                               @RequestParam(value = "dietaryPreferenceIds", required = false) List<Long> dietaryPreferenceIds,
                               Model model) {
-        String email = AuthUtils.getUserEmail(authentication);
-
         if (bindingResult.hasErrors()) {
-            prepareFormModel(model, email);
+            prepareFormModel(model, authentication);
             return "profile/user-profile";
         }
 
@@ -66,11 +63,12 @@ public class ProfileController {
         return "redirect:/dashboard";
     }
 
-    private void prepareFormModel(Model model, String userEmail) {
-        model.addAttribute("loggedInUser", userService.findByEmail(userEmail));
+    private void prepareFormModel(Model model, Authentication authentication) {
+        model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(authentication));
         model.addAttribute("activityLevels", ActivityLevel.values());
         model.addAttribute("genderList", Gender.values());
         model.addAttribute("goals", Goal.values());
         model.addAttribute("preferences", dietaryPreferenceService.findAll());
+        model.addAttribute("todayIso", java.time.LocalDate.now().toString());
     }
 }

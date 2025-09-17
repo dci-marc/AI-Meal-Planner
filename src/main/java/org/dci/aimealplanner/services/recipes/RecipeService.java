@@ -13,6 +13,7 @@ import org.dci.aimealplanner.integration.aiapi.dtos.recipes.RecipeFromAI;
 import org.dci.aimealplanner.models.Difficulty;
 import org.dci.aimealplanner.models.SourceType;
 import org.dci.aimealplanner.models.recipes.RecipeCardDTO;
+import org.dci.aimealplanner.models.recipes.RecipeForm;
 import org.dci.aimealplanner.models.recipes.UpdateRecipeDTO;
 import org.dci.aimealplanner.repositories.recipes.RecipeRepository;
 import org.dci.aimealplanner.services.ingredients.*;
@@ -26,6 +27,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
@@ -359,4 +361,57 @@ public class RecipeService {
         );
     }
 
+    @Transactional
+    public Recipe createUserRecipe(Long userId, RecipeForm form) {
+        var user = userService.findById(userId);
+        var r = new Recipe();
+        applyForm(r, form);
+        r.setSourceType(SourceType.USER);
+        r.setAuthor(user);
+        r.setFeatured(false);
+        return recipeRepository.save(r);
+    }
+
+    @Transactional(readOnly = true)
+    public Recipe getUserRecipeForEdit(Long userId, Long recipeId) {
+        var r = recipeRepository.findById(recipeId)
+                .orElseThrow(() -> new IllegalArgumentException("Recipe not found"));
+        if (r.getAuthor() == null || !r.getAuthor().getId().equals(userId)) {
+            throw new SecurityException("Not allowed to edit this recipe");
+        }
+        return r;
+    }
+
+    @Transactional
+    public Recipe updateUserRecipe(Long userId, Long recipeId, RecipeForm form) {
+        var r = getUserRecipeForEdit(userId, recipeId);
+        applyForm(r, form);
+        return recipeRepository.save(r);
+    }
+
+    private void applyForm(Recipe r, RecipeForm f) {
+        r.setTitle(f.title());
+        r.setDifficulty(f.difficulty() != null ? f.difficulty() : Difficulty.EASY);
+        r.setPreparationTimeMinutes(f.preparationTimeMinutes());
+        r.setServings(f.servings());
+        r.setInstructions(f.instructions());
+        r.setKcalPerServ(f.kcalPerServ());
+        r.setProteinPerServ(f.proteinPerServ());
+        r.setCarbsPerServ(f.carbsPerServ());
+        r.setFatPerServ(f.fatPerServ());
+
+        if (StringUtils.hasText(f.heroImageUrl())) {
+            if (r.getImage() == null) r.setImage(new ImageMetaData());
+            r.getImage().setImageUrl(f.heroImageUrl());
+        } else {
+            r.setImage(null);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Recipe> findByAuthorAndSourceType(Long authorId, SourceType sourceType, Pageable pageable) {
+        if (authorId == null) throw new IllegalArgumentException("authorId is required");
+        if (sourceType == null) throw new IllegalArgumentException("sourceType is required");
+        return recipeRepository.findByAuthor_IdAndSourceType(authorId, sourceType, pageable);
+    }
 }

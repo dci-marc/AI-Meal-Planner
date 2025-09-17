@@ -1,6 +1,7 @@
 package org.dci.aimealplanner.repositories.recipes;
 
 import org.dci.aimealplanner.entities.recipes.Recipe;
+import org.dci.aimealplanner.models.SourceType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -46,4 +47,6 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long>, JpaSpecif
         var picks = findFeatured(p);
         return picks.isEmpty() ? findNewest(p) : picks;
     }
+
+    Page<Recipe> findByAuthor_IdAndSourceType(Long authorId, SourceType sourceType, Pageable pageable);
 }

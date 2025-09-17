@@ -34,12 +34,16 @@ public class MealPlanController {
     private final MealPlanAiService mealPlanAiService;
 
     @GetMapping
-    public String list(Model model, Authentication authentication) {
+    public String list(Model model, Authentication authentication,
+                       HttpServletRequest request) {
         String email = AuthUtils.getUserEmail(authentication);
         User loggedUser = userService.findByEmail(email);
         List<MealPlan> plans = mealPlanningService.listPlansForUser(loggedUser.getId());
         model.addAttribute("plans", plans);
         model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(loggedUser));
+        String referer = request.getHeader("Referer");
+        model.addAttribute("backUrl", referer);
+
         return "planning/mealplans_list";
     }
 
