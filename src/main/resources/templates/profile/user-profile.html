@@ -108,7 +108,7 @@
             <select class="form-select" id="goal" th:field="*{goal}" required
                     th:classappend="${#fields.hasErrors('goal')}? ' is-invalid'">
               <option value="">-- Select --</option>
-              <option th:each="goal : ${goals}" th:value="${goal}" th:text="${goal.name()}"></option>
+              <option th:each="goal : ${goals}" th:value="${goal}" th:text="${#strings.toLowerCase(goal.name())}"></option>
             </select>
             <div class="invalid-feedback" th:if="${#fields.hasErrors('goal')}" th:errors="*{goal}"></div>
           </div>

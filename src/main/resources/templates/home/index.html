@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="https://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
     <title>Home • AI Meal Planner</title>
@@ -58,6 +58,7 @@
     <div class="hero-wrap shadow-sm">
         <div class="hero-overlay"></div>
         <div class="hero-content">
+
             <div th:if="${loggedInUser == null}">
                 <div class="hero-kicker small mb-2">ai meal planner</div>
                 <h1 class="h2 fw-bold mb-2">Plan tasty, balanced meals in minutes</h1>
@@ -69,21 +70,37 @@
                 <div class="small mt-2" style="opacity:.8">No credit card needed • Cancel anytime</div>
             </div>
 
-            <div th:if="${loggedInUser != null}">
+            <div th:if="${loggedInUser != null and loggedInUser.role() == T(org.dci.aimealplanner.models.Role).ADMIN}">
+                <div class="hero-kicker small mb-2">admin</div>
+                <h1 class="h3 fw-bold mb-2"
+                    th:text="${'Welcome back, ' + ( (loggedInUser.firstName() != null and !#strings.isEmpty(loggedInUser.firstName()))
+                        ? loggedInUser.firstName()
+                        : loggedInUser.email() ) + ' 👋'}">
+                    Welcome back, Admin 👋
+                </h1>
+                <p class="mb-3">Jump into your dashboard to manage users, recipes, and meal plans.</p>
+                <div class="hero-cta">
+                    <a href="/dashboard" class="btn btn-warning">Open Admin Dashboard</a>
+                    <a href="/admin/users" class="btn btn-outline-light">Manage users</a>
+                    <a href="/admin/recipes" class="btn btn-outline-light">Manage recipes</a>
+                </div>
+            </div>
+
+            <div th:if="${loggedInUser != null and loggedInUser.role() != T(org.dci.aimealplanner.models.Role).ADMIN}">
                 <div class="hero-kicker small mb-2">welcome back</div>
                 <h1 class="h3 fw-bold mb-2"
                     th:text="${'Hi, ' + ( (loggedInUser.firstName() != null and !#strings.isEmpty(loggedInUser.firstName()))
-              ? loggedInUser.firstName()
-              : loggedInUser.email() ) + ' 👋'}">
+                        ? loggedInUser.firstName()
+                        : loggedInUser.email() ) + ' 👋'}">
                     Hi, Maryam 👋
                 </h1>
-
                 <p class="mb-3">Pick up where you left off or ask AI for fresh ideas.</p>
                 <div class="hero-cta">
                     <a href="/meal-plans" class="btn btn-primary">Open my meal plan</a>
                     <a href="/recipes/ask-ai" class="btn btn-outline-light">Ask AI</a>
                 </div>
             </div>
+
         </div>
     </div>
 </section>
@@ -137,8 +154,8 @@
                         <p class="text-muted mb-0 small">
                             <span th:text="${r.preparationTimeMinutes}">30</span> min
                             <span th:if="${r.kcalPerServ() != null}">
-                • <span th:text="${#numbers.formatDecimal(r.kcalPerServ(), 0, 'POINT', 0, 'NONE')}">450</span> kcal / serving
-              </span>
+                                • <span th:text="${#numbers.formatDecimal(r.kcalPerServ(), 0, 'POINT', 0, 'NONE')}">450</span> kcal
+                            </span>
                         </p>
                     </div>
                 </div>
@@ -147,7 +164,8 @@
     </div>
 </section>
 
-<section class="container py-4" th:if="${loggedInUser != null}">
+<section class="container py-4"
+         th:if="${loggedInUser != null and loggedInUser.role() != T(org.dci.aimealplanner.models.Role).ADMIN}">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2 class="m-0">Your Next Meals</h2>
         <a class="btn btn-outline-secondary btn-sm" href="/meal-plans">Open meal plans</a>
@@ -176,8 +194,8 @@
                             <div class="small text-muted">
                                 <span th:text="${m.recipe.preparationTimeMinutes}">30</span> min
                                 <span th:if="${m.recipe.kcalPerServ() != null}">
-                  • <span th:text="${#numbers.formatDecimal(m.recipe.kcalPerServ(), 0, 'POINT', 0, 'NONE')}">450</span> kcal / serving
-                </span>
+                                    • <span th:text="${#numbers.formatDecimal(m.recipe.kcalPerServ(), 0, 'POINT', 0, 'NONE')}">450</span> kcal / serving
+                                </span>
                                 • Servings: <span th:text="${m.servings}">1</span>
                             </div>
                         </div>
@@ -188,8 +206,10 @@
     </div>
 </section>
 
-<section class="container py-4">
+<section class="container py-4"
+         th:if="${loggedInUser == null or (loggedInUser != null and loggedInUser.role() != T(org.dci.aimealplanner.models.Role).ADMIN)}">
     <div class="row g-3">
+
         <div class="col-12 col-md-6">
             <div class="card h-100 border-success position-relative">
                 <a th:if="${loggedInUser != null}" href="/recipes/ask-ai" class="stretched-link" aria-label="Ask AI"></a>
@@ -222,8 +242,10 @@
                 </div>
             </div>
         </div>
+
     </div>
 </section>
+
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/js/admin_dashboard/scripts.js"></script>

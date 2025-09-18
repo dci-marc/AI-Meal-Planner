@@ -350,12 +350,9 @@ public class RecipeService {
     private RecipeCardDTO toCard(Recipe recipe) {
         String heroImageUrl = (recipe.getImage() != null) ? recipe.getImage().getImageUrl() : null;
 
-        java.math.BigDecimal perServing = null;
+        BigDecimal totalCalories = null;
         if (recipe.getKcalPerServ() != null) {
-            var servings = (recipe.getServings() == null || recipe.getServings().compareTo(java.math.BigDecimal.ZERO) <= 0)
-                    ? java.math.BigDecimal.ONE
-                    : recipe.getServings();
-            perServing = recipe.getKcalPerServ().divide(servings, 0, java.math.RoundingMode.HALF_UP);
+            totalCalories = recipe.getKcalPerServ();
         }
 
         return new RecipeCardDTO(
@@ -363,7 +360,7 @@ public class RecipeService {
                 recipe.getTitle(),
                 heroImageUrl,
                 recipe.getPreparationTimeMinutes(),
-                perServing
+                totalCalories
         );
     }
 

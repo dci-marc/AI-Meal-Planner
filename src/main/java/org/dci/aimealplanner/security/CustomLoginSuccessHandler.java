@@ -57,14 +57,14 @@ public class CustomLoginSuccessHandler implements AuthenticationSuccessHandler {
             SecurityContextHolder.getContext().setAuthentication(newAuth);
         }
 
-//        boolean isAdmin = authentication.getAuthorities().stream()
-//                .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
-//
-//        if (isAdmin) {
-//            response.sendRedirect("/dashboard");
-//        } else {
-//            response.sendRedirect("/index");
-//        }
-        response.sendRedirect("/dashboard");
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+
+        if (isAdmin) {
+            response.sendRedirect("/dashboard");
+        } else {
+            response.sendRedirect("/index");
+        }
+
     }
 }

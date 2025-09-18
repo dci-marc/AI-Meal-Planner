@@ -33,11 +33,12 @@
 <div th:replace="~{/fragments/navigation_tab :: navigation}"></div>
 
 <main class="container wrap py-4 admin-recipes">
+    <h1 class="h4 fw-bold mt-2">Manage Recipes</h1>
+
     <div class="d-flex align-items-center justify-content-between">
         <a th:href="${backUrl}" class="btn btn-link px-0 text-decoration-none">&larr; Back</a>
     </div>
 
-    <h1 class="h4 fw-bold mt-2">Manage Recipes</h1>
 
     <div th:if="${success}" class="alert alert-success alert-dismissible fade show mt-2" role="alert">
         <span th:text="${success}">Success</span>
