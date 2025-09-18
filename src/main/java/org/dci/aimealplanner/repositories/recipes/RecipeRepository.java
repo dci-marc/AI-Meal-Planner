@@ -49,4 +49,9 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long>, JpaSpecif
     }
 
     Page<Recipe> findByAuthor_IdAndSourceType(Long authorId, SourceType sourceType, Pageable pageable);
+
+    Page<Recipe> findBySourceType(SourceType sourceType, Pageable pageable);
+    long countBySourceType(SourceType sourceType);
+
+
 }

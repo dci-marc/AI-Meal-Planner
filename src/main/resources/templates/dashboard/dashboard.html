@@ -31,28 +31,28 @@
     <h1 class="section-title h4 mb-3">Dashboard</h1>
 
     <div class="row g-4" sec:authorize="isAuthenticated()">
-        <div class="col-12 col-md-6">
+        <div class="col-12 col-md-6" sec:authorize="hasAnyRole('USER')">
             <a href="/profile" class="tile">
                 <div class="icon i-blue"><i class="bi bi-person-badge"></i></div>
                 <div><h3>My Profile</h3><p>View and update your profile information.</p></div>
             </a>
         </div>
 
-        <div class="col-12 col-md-6">
+        <div class="col-12 col-md-6" sec:authorize="isAuthenticated()">
             <a href="/settings" class="tile">
                 <div class="icon i-purple"><i class="bi bi-gear"></i></div>
                 <div><h3>Account Settings</h3><p>Change email or password, manage sign-in.</p></div>
             </a>
         </div>
 
-        <div class="col-12 col-md-6">
+        <div class="col-12 col-md-6" sec:authorize="hasAnyRole('USER')">
             <a href="/dashboard/recipes" class="tile">
                 <div class="icon i-teal"><i class="bi bi-journal-bookmark"></i></div>
                 <div><h3>My Recipes</h3><p>Create, edit, and manage your recipes.</p></div>
             </a>
         </div>
 
-        <div class="col-12 col-md-6">
+        <div class="col-12 col-md-6" sec:authorize="hasAnyRole('USER')">
             <a href="/dashboard/meals" class="tile">
                 <div class="icon i-green"><i class="bi bi-clipboard-check"></i></div>
                 <div><h3>My Meal Plans</h3><p>Plan and organize meals for the week.</p></div>
@@ -61,8 +61,14 @@
     </div>
 
     <div class="mt-4" sec:authorize="hasRole('ADMIN')">
-        <h2 class="section-title h6 mb-3">Admin</h2>
+        <h2 class="section-title h6 mb-3">System Management</h2>
         <div class="row g-4">
+            <div class="col-12 col-md-6">
+                <a href="/admin/overview" class="tile">
+                    <div class="icon i-blue"><i class="bi bi-bar-chart-line"></i></div>
+                    <div><h3>System Overview</h3><p>Key metrics and system health.</p></div>
+                </a>
+            </div>
             <div class="col-12 col-md-6">
                 <a href="/admin/users" class="tile">
                     <div class="icon i-rose"><i class="bi bi-people"></i></div>
@@ -79,12 +85,6 @@
                 <a href="/admin/meal-plans" class="tile">
                     <div class="icon i-green"><i class="bi bi-clipboard-data"></i></div>
                     <div><h3>Manage Meal Plans</h3><p>View and manage generated plans.</p></div>
-                </a>
-            </div>
-            <div class="col-12 col-md-6">
-                <a href="/admin/overview" class="tile">
-                    <div class="icon i-blue"><i class="bi bi-bar-chart-line"></i></div>
-                    <div><h3>System Overview</h3><p>Key metrics and system health.</p></div>
                 </a>
             </div>
         </div>
