@@ -186,8 +186,14 @@ public class RecipeService {
         recipeRepository.deleteById(id);
     }
 
+    @Transactional(readOnly = true)
     public List<Recipe> findAll() {
         return recipeRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Recipe> findAll(Pageable pageable) {
+        return recipeRepository.findAll(pageable);
     }
 
     public Page<Recipe> filterRecipes(String title, Set<Long> categoryIds,
@@ -413,5 +419,21 @@ public class RecipeService {
         if (authorId == null) throw new IllegalArgumentException("authorId is required");
         if (sourceType == null) throw new IllegalArgumentException("sourceType is required");
         return recipeRepository.findByAuthor_IdAndSourceType(authorId, sourceType, pageable);
+    }
+
+    public long countAll() {
+        return recipeRepository.count();
+    }
+
+    public long countBySource(SourceType sourceType) {
+        return recipeRepository.countBySourceType(sourceType);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Recipe> findBySource(SourceType sourceType, Pageable pageable) {
+        if (sourceType == null) {
+            return recipeRepository.findAll(pageable);
+        }
+        return recipeRepository.findBySourceType(sourceType, pageable);
     }
 }

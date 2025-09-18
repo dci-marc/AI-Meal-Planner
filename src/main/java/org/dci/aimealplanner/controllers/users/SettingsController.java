@@ -22,10 +22,12 @@ public class SettingsController {
     @GetMapping("/settings")
     @PreAuthorize("isAuthenticated()")
     public String settings(Authentication authentication, Model model) {
-        model.addAttribute("LoggedInUser", userInformationService.getUserBasicDTO(authentication));
         UserBasicDTO currentUser = userInformationService.getUserBasicDTO(authentication);
+        model.addAttribute("loggedInUser", currentUser);
+
         boolean isLocalUser = currentUser.userType() == UserType.LOCAL;
         boolean isGoogleUser = currentUser.userType() == UserType.GOOGLE;
+
         model.addAttribute("isLocalUser", isLocalUser);
         model.addAttribute("isGoogleUser", isGoogleUser);
         return "dashboard/users/account-settings";

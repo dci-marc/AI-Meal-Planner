@@ -9,6 +9,8 @@ import org.dci.aimealplanner.exceptions.VerificationTokenInvalid;
 import org.dci.aimealplanner.models.Role;
 import org.dci.aimealplanner.models.UserType;
 import org.dci.aimealplanner.repositories.users.UserRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -201,4 +203,59 @@ public class UserService implements UserDetailsService {
         update(user);
     }
 
+    public long countByDeletedFalse() {
+        return userRepository.countByIsDeletedIsFalse();
+    }
+
+    public long countByEmailVerifiedTrueAndDeletedFalse() {
+        return userRepository.countByEmailVerifiedTrueAndIsDeletedFalse();
+    }
+
+    public long countByIsDeletedIsFalse() {
+        return userRepository.countByIsDeletedIsFalse();
+    }
+
+    public long countByEmailVerifiedTrueAndIsDeletedFalse() {
+        return userRepository.countByEmailVerifiedTrueAndIsDeletedFalse();
+    }
+
+    public long countByEmailVerifiedFalseAndIsDeletedFalse() {
+        return userRepository.countByEmailVerifiedFalseAndIsDeletedFalse();
+    }
+
+    public long countByIsDeletedTrue() {
+        return userRepository.countByIsDeletedTrue();
+    }
+
+    public Page<User> searchDeleted(String like, Pageable pageable) {
+        return userRepository.searchDeleted(like, pageable);
+    }
+
+    public Page<User> searchDeletedByType(String like, UserType type, Pageable pageable) {
+        return userRepository.searchDeletedByType(like, type, pageable);
+    }
+
+    public Page<User> searchActiveVerified(String like, Pageable pageable) {
+        return userRepository.searchActiveVerified(like, pageable);
+    }
+
+    public Page<User> searchActiveVerifiedByType(String like, UserType type, Pageable pageable) {
+        return userRepository.searchActiveVerifiedByType(like, type, pageable);
+    }
+
+    public Page<User> searchActiveUnverified(String like, Pageable pageable) {
+        return userRepository.searchActiveUnverified(like, pageable);
+    }
+
+    public Page<User> searchActiveUnverifiedByType(String like, UserType type, Pageable pageable) {
+        return userRepository.searchActiveUnverifiedByType(like, type, pageable);
+    }
+
+    public Page<User> searchActive(String like, Pageable pageable) {
+        return userRepository.searchActive(like, pageable);
+    }
+
+    public Page<User> searchActiveByType(String like, UserType type, Pageable pageable) {
+        return userRepository.searchActiveByType(like, type, pageable);
+    }
 }

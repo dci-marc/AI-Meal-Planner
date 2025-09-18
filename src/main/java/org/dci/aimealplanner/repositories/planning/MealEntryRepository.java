@@ -25,4 +25,6 @@ public interface MealEntryRepository extends JpaRepository<MealEntry, Long> {
       ORDER BY e.entryDate ASC, e.mealSlot ASC
     """)
     List<MealEntry> upcomingForUser(Long userId, LocalDate today);
+
+    List<MealEntry> findByMealPlan_IdOrderByEntryDateAscMealSlotAsc(Long mealPlanId);
 }

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin • Users</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/css/navigation_tab_styles.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background:#f6f8fb; }
+        .wrap { max-width:1100px; }
+        .truncate { max-width:360px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .admin-users ul.nav.nav-pills {
+            position: static !important; display:flex !important; gap:.5rem; padding:0 !important; margin:.5rem 0 0 !important;
+            background:transparent !important; border:0 !important; box-shadow:none !important;
+        }
+        .admin-users .nav-link { border-radius:999px; padding:.35rem .9rem; line-height:1.1; }
+        .status-dot { width:8px; height:8px; display:inline-block; border-radius:50%; margin-right:.35rem; }
+        .dot-green { background:#16a34a; } .dot-gray { background:#9ca3af; }
+        .badge-type { background:#eef2ff; color:#4338ca; }
+    </style>
+</head>
+<body>
+<div th:replace="~{/fragments/navigation_tab :: navigation}"></div>
+
+<main class="container wrap py-4 admin-users">
+    <h1 class="h4 fw-bold mt-2">Manage Accounts</h1>
+
+    <div class="d-flex align-items-center justify-content-between">
+        <a th:href="${backUrl}" class="btn btn-link px-0 text-decoration-none">&larr; Back</a>
+    </div>
+
+    <div th:if="${success}" class="alert alert-success alert-dismissible fade show mt-2" role="alert">
+        <span th:text="${success}">Success</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    <div th:if="${error}" class="alert alert-danger alert-dismissible fade show mt-2" role="alert">
+        <span th:text="${error}">Something went wrong</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+
+    <div class="row g-3 align-items-end">
+        <div class="col-12 col-md-6">
+            <ul class="nav nav-pills">
+                <li class="nav-item">
+                    <a class="nav-link" th:classappend="${filter}=='ALL' ? 'active' : ''"
+                       th:href="@{/admin/users(filter='ALL',provider=${provider},q=${q},page=${0},size=${page.size})}">
+                        All <span class="badge bg-light text-dark ms-1" th:text="${countAll}">0</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:classappend="${filter}=='ACTIVE' ? 'active' : ''"
+                       th:href="@{/admin/users(filter='ACTIVE',provider=${provider},q=${q},page=${0},size=${page.size})}">
+                        Active <span class="badge bg-light text-dark ms-1" th:text="${countActive}">0</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:classappend="${filter}=='UNVERIFIED' ? 'active' : ''"
+                       th:href="@{/admin/users(filter='UNVERIFIED',provider=${provider},q=${q},page=${0},size=${page.size})}">
+                        Unverified <span class="badge bg-light text-dark ms-1" th:text="${countUnverified}">0</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:classappend="${filter}=='DELETED' ? 'active' : ''"
+                       th:href="@{/admin/users(filter='DELETED',provider=${provider},q=${q},page=${0},size=${page.size})}">
+                        Deleted <span class="badge bg-light text-dark ms-1" th:text="${countDeleted}">0</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <div class="col-6 col-md-3">
+            <label class="form-label mb-1">Provider</label>
+            <select class="form-select"
+                    onchange="location.href=this.value"
+                    th:value="${provider}"
+                    th:with="base=@{/admin/users(filter=${filter},q=${q},page=${0},size=${page.size})}">
+                <option th:value="${base + '&provider=ANY'}" th:selected="${provider}=='ANY'">Any</option>
+                <option th:value="${base + '&provider=LOCAL'}" th:selected="${provider}=='LOCAL'">Local</option>
+                <option th:value="${base + '&provider=GOOGLE'}" th:selected="${provider}=='GOOGLE'">Google</option>
+            </select>
+        </div>
+
+        <div class="col-6 col-md-3">
+            <label class="form-label mb-1">Search (email)</label>
+            <form th:action="@{/admin/users}" method="get" class="d-flex">
+                <input type="hidden" name="filter"   th:value="${filter}">
+                <input type="hidden" name="provider" th:value="${provider}">
+                <input type="hidden" name="page"     value="0">
+                <input type="hidden" name="size"     th:value="${page.size}">
+                <input name="q" class="form-control me-2" placeholder="email contains..." th:value="${q}">
+                <button class="btn btn-outline-primary">Go</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="table-responsive mt-3">
+        <table class="table align-middle">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Email</th>
+                <th>Type</th>
+                <th>Role</th>
+                <th>Verified</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th class="text-end">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="u : ${page.content}">
+                <td th:text="${u.id}">1</td>
+                <td class="truncate" th:text="${u.email}">email@example.com</td>
+                <td><span class="badge badge-type" th:text="${u.userType}">LOCAL</span></td>
+                <td><span class="badge bg-light text-dark" th:text="${u.role}">ROLE_USER</span></td>
+                <td>
+                    <span class="status-dot" th:classappend="${u.emailVerified} ? 'dot-green' : 'dot-gray'"></span>
+                    <span th:text="${u.emailVerified} ? 'Yes' : 'No'">Yes</span>
+                </td>
+                <td>
+          <span class="badge" th:classappend="${u.isDeleted} ? 'bg-secondary' : 'bg-success'"
+                th:text="${u.isDeleted} ? 'Deleted' : 'Active'">Active</span>
+                </td>
+                <td><small class="text-muted" th:text="${#temporals.format(u.createdAt, 'yyyy-MM-dd HH:mm')}">—</small></td>
+                <td class="text-end">
+                    <form th:if="${!u.emailVerified && !u.isDeleted}"
+                          th:action="@{'/admin/users/' + ${u.id} + '/verify'}" method="post" class="d-inline">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                        <button class="btn btn-sm btn-outline-success">Verify</button>
+                    </form>
+
+                    <form th:if="${!u.isDeleted}" th:action="@{'/admin/users/' + ${u.id} + '/role'}" method="post" class="d-inline">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                        <select name="role" class="form-select form-select-sm d-inline w-auto me-1">
+                            <option th:each="r : ${roles}" th:value="${r}" th:text="${r}" th:selected="${r==u.role}"></option>
+                        </select>
+                        <button class="btn btn-sm btn-outline-secondary">Update</button>
+                    </form>
+
+                    <form th:if="${!u.isDeleted}" th:action="@{'/admin/users/' + ${u.id} + '/delete'}" method="post" class="d-inline"
+                          th:attr="onsubmit=|return confirm('Soft delete ' + '${u.email}' + '?')|">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                        <button class="btn btn-sm btn-outline-danger">Delete</button>
+                    </form>
+                    <form th:if="${u.isDeleted}" th:action="@{'/admin/users/' + ${u.id} + '/restore'}" method="post" class="d-inline">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                        <button class="btn btn-sm btn-outline-success">Restore</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <nav th:if="${page.totalPages > 1}" class="mt-2">
+        <ul class="pagination">
+            <li class="page-item" th:classappend="${page.first} ? 'disabled'">
+                <a class="page-link"
+                   th:href="@{/admin/users(filter=${filter},provider=${provider},q=${q},page=${0},size=${page.size})}">First</a>
+            </li>
+            <li class="page-item" th:classappend="${page.first} ? 'disabled'">
+                <a class="page-link"
+                   th:href="@{/admin/users(filter=${filter},provider=${provider},q=${q},page=${page.number-1},size=${page.size})}">Prev</a>
+            </li>
+            <li class="page-item disabled">
+                <span class="page-link" th:text="${page.number + 1} + ' / ' + ${page.totalPages}">1 / 1</span>
+            </li>
+            <li class="page-item" th:classappend="${page.last} ? 'disabled'">
+                <a class="page-link"
+                   th:href="@{/admin/users(filter=${filter},provider=${provider},q=${q},page=${page.number+1},size=${page.size})}">Next</a>
+            </li>
+            <li class="page-item" th:classappend="${page.last} ? 'disabled'">
+                <a class="page-link"
+                   th:href="@{/admin/users(filter=${filter},provider=${provider},q=${q},page=${page.totalPages-1},size=${page.size})}">Last</a>
+            </li>
+        </ul>
+    </nav>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
