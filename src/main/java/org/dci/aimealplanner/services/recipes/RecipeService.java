@@ -279,48 +279,77 @@ public class RecipeService {
             recipe.setFatPerServ(null);
             return;
         }
+        final Set<String> GRAM_CODES = Set.of("g","gram","grams","gr");
 
-        BigDecimal calories = BigDecimal.ZERO;
-        BigDecimal carbs    = BigDecimal.ZERO;
-        BigDecimal fats     = BigDecimal.ZERO;
-        BigDecimal protein  = BigDecimal.ZERO;
+        BigDecimal totalKcal   = BigDecimal.ZERO;
+        BigDecimal totalCarbs  = BigDecimal.ZERO;
+        BigDecimal totalFat    = BigDecimal.ZERO;
+        BigDecimal totalProtein= BigDecimal.ZERO;
+
+        int lines = 0, used = 0, skipped = 0;
 
         for (RecipeIngredient line : recipe.getIngredients()) {
-            if (line == null || line.getIngredient() == null ||
-                    line.getUnit() == null || line.getAmount() == null) {
+            lines++;
+            if (line == null) { skipped++; continue; }
+            if (line.getIngredient() == null || line.getUnit() == null || line.getAmount() == null) {
+                skipped++;
+                continue;
+            }
+            if (line.getAmount().compareTo(BigDecimal.ZERO) <= 0) { skipped++; continue; }
+
+            NutritionFact nf = line.getIngredient().getNutritionFact();
+            if (nf == null) {
+                skipped++;
+
                 continue;
             }
 
-            NutritionFact nf = line.getIngredient().getNutritionFact();
-            if (nf == null) continue;
+            String code = Optional.ofNullable(line.getUnit().getCode()).orElse("").trim().toLowerCase();
 
-            String code = Optional.ofNullable(line.getUnit().getCode()).orElse("").toLowerCase();
-
-            BigDecimal gramsForLine;
-            if (code.equals("g") || code.equals("gram") || code.equals("grams")) {
+            BigDecimal gramsForLine = null;
+            if (GRAM_CODES.contains(code)) {
                 gramsForLine = line.getAmount();
             } else {
                 IngredientUnitRatio iur = ingredientUnitRatioService.findRatio(line.getIngredient(), line.getUnit());
-                if (iur == null || iur.getRatio() == null) continue;
+                if (iur == null || iur.getRatio() == null || iur.getRatio() <= 0) {
+                    skipped++;
+                    continue;
+                }
                 gramsForLine = line.getAmount().multiply(BigDecimal.valueOf(iur.getRatio()));
+            }
+
+            if (gramsForLine == null || gramsForLine.compareTo(BigDecimal.ZERO) <= 0) {
+                skipped++;
+                continue;
             }
 
             BigDecimal factor = gramsForLine.divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP);
 
-            if (nf.getKcal()    != null) calories = calories.add(BigDecimal.valueOf(nf.getKcal()).multiply(factor));
-            if (nf.getProtein() != null) protein  = protein .add(BigDecimal.valueOf(nf.getProtein()).multiply(factor));
-            if (nf.getCarbs()   != null) carbs    = carbs   .add(BigDecimal.valueOf(nf.getCarbs()).multiply(factor));
-            if (nf.getFat()     != null) fats     = fats    .add(BigDecimal.valueOf(nf.getFat()).multiply(factor));
+            if (nf.getKcal()    != null) totalKcal    = totalKcal   .add(BigDecimal.valueOf(nf.getKcal()   ).multiply(factor));
+            if (nf.getProtein() != null) totalProtein = totalProtein.add(BigDecimal.valueOf(nf.getProtein()).multiply(factor));
+            if (nf.getCarbs()   != null) totalCarbs   = totalCarbs  .add(BigDecimal.valueOf(nf.getCarbs()  ).multiply(factor));
+            if (nf.getFat()     != null) totalFat     = totalFat    .add(BigDecimal.valueOf(nf.getFat()    ).multiply(factor));
+
+            used++;
         }
 
-        BigDecimal servings = (recipe.getServings() == null || recipe.getServings().compareTo(BigDecimal.ZERO) == 0)
+        BigDecimal servings = (recipe.getServings() == null || recipe.getServings().compareTo(BigDecimal.ZERO) <= 0)
                 ? BigDecimal.ONE : recipe.getServings();
 
-        recipe.setKcalPerServ(calories.divide(servings, 2, RoundingMode.HALF_UP));
-        recipe.setProteinPerServ(protein.divide(servings, 2, RoundingMode.HALF_UP));
-        recipe.setCarbsPerServ(carbs.divide(servings, 2, RoundingMode.HALF_UP));
-        recipe.setFatPerServ(fats.divide(servings, 2, RoundingMode.HALF_UP));
+        recipe.setKcalPerServ   ( totalKcal   .divide(servings, 2, RoundingMode.HALF_UP) );
+        recipe.setProteinPerServ( totalProtein.divide(servings, 2, RoundingMode.HALF_UP) );
+        recipe.setCarbsPerServ  ( totalCarbs  .divide(servings, 2, RoundingMode.HALF_UP) );
+        recipe.setFatPerServ    ( totalFat    .divide(servings, 2, RoundingMode.HALF_UP) );
+
+        if (used == 0 && lines > 0) {
+        } else if (skipped > 0) {
+        }
     }
+
+    private static String safeName(Ingredient ing) {
+        return ing == null ? "(null)" : Optional.ofNullable(ing.getName()).orElse("(unnamed)");
+    }
+
 
     private Boolean extractFeaturedFlag(Object dto) {
         try {

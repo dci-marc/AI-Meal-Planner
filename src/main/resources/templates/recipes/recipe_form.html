@@ -29,6 +29,16 @@
     #ta-results-global{position:fixed;z-index:5000;display:none;max-height:240px;overflow:auto;background:#fff;border:1px solid rgba(0,0,0,.175);border-radius:.375rem;box-shadow:0 8px 24px rgba(0,0,0,.12);}
     #ta-results-global .list-group-item{padding:.5rem .75rem;cursor:pointer;}
     #ta-results-global .list-group-item:hover{background-color:var(--soft-bg);}
+
+    .cat-dropdown .dropdown-menu{
+      width:min(600px, 100%);
+      max-height:320px; overflow:auto;
+      padding:.5rem;
+    }
+    .cat-dropdown .list-group-item{
+      border:0; padding:.25rem .25rem;
+    }
+    .hint{color:var(--muted); font-size:.875rem;}
   </style>
 </head>
 <body class="bg-light">
@@ -76,7 +86,8 @@
 
       <div class="col-md-4">
         <label class="form-label">Meal Categories</label>
-        <select th:field="*{mealCategories}" class="form-select" multiple size="4">
+
+        <select id="mealCategoriesHidden" th:field="*{mealCategories}" class="d-none" multiple>
           <option th:each="category : ${categories}"
                   th:value="${category.id}"
                   th:text="${category.name}"
@@ -84,14 +95,38 @@
                      and #lists.contains(recipe.mealCategories.![id], category.id)}">
           </option>
         </select>
+
+        <div class="dropdown w-100 cat-dropdown">
+          <button class="btn btn-outline-secondary w-100 d-flex justify-content-between align-items-center"
+                  type="button" data-bs-toggle="dropdown" aria-expanded="false" id="catDropdownBtn">
+            <span id="catDropdownLabel">Select categories…</span>
+            <span class="badge text-bg-light ms-2" id="catCountBadge" style="display:none"></span>
+          </button>
+          <div class="dropdown-menu">
+            <input id="catFilter" type="text" class="form-control mb-2" placeholder="Filter categories…" autocomplete="off">
+            <div id="catList" class="list-group">
+              <label class="list-group-item" th:each="category : ${categories}" th:attr="data-id=${category.id}">
+                <input class="form-check-input me-2" type="checkbox"
+                       th:attr="data-id=${category.id}"
+                >
+                <span th:text="${category.name}">Category</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="hint mt-1">Tip: Click to open, type to filter, tick the boxes. Press Esc to close.</div>
       </div>
 
       <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center">
-          <label class="form-label mb-0">Ingredients</label>
-          <div class="d-flex gap-2">
-            <button type="button" class="btn btn-sm btn-secondary" onclick="addRow()">Add row</button>
-            <a th:href="@{/ingredients/new}" class="btn btn-sm btn-outline-primary">Add Ingredient to DB</a>
+        <div class="d-flex flex-column">
+          <div class="d-flex align-items-center justify-content-between">
+            <label class="form-label mb-0">Ingredients</label>
+          </div>
+
+          <div class="mt-1">
+            <button type="button" class="btn btn-sm btn-secondary" onclick="addRow()">
+              + Add ingredient row
+            </button>
           </div>
         </div>
 
@@ -149,6 +184,7 @@
       <div class="col-12 d-flex gap-2 mt-2">
         <button class="btn btn-primary" type="submit" th:text="${recipe.id == null ? 'Create' : 'Update'}"></button>
         <a th:href="${redirectUrl}" class="btn btn-secondary">Cancel</a>
+        <button type="button" id="clearDraftBtn" class="btn btn-outline-secondary ms-auto">Clear draft</button>
       </div>
     </div>
   </form>
@@ -162,8 +198,9 @@
   const NEW_ING_AI = /*[[@{/ingredients/new-ai}]]*/ '/ingredients/new-ai';
 
   function unitsUrlFor(ingId){ return API_UNITS_BASE.replace('/0/','/'+ingId+'/'); }
+
   function aiUrlFor(name){
-    // Use RELATIVE return path so backend sanitizer keeps it
+    try { sessionStorage.setItem('recipe:allowRestoreOnce', '1'); } catch(_){}
     const ret = window.location.pathname + window.location.search + window.location.hash;
     return `${NEW_ING_AI}?name=${encodeURIComponent(name)}&return=${encodeURIComponent(ret)}`;
   }
@@ -174,6 +211,7 @@
     if(!r.ok) throw new Error(r.status+' '+r.statusText);
     return r.json();
   }
+
   async function loadUnits(selectEl, ingredientId, initialUnitId){
     selectEl.innerHTML = '<option value="">— none —</option>';
     if(!ingredientId) return;
@@ -347,40 +385,118 @@
   window.addEventListener('scroll', ()=>{ if(panel.style.display==='block' && activeInput) openPanelFor(activeInput); }, true);
   window.addEventListener('resize', ()=>{ if(panel.style.display==='block' && activeInput) openPanelFor(activeInput); });
 
+  function updateCatLabel(){
+    const hidden = document.getElementById('mealCategoriesHidden');
+    const selected = Array.from(hidden.selectedOptions).map(o=>o.textContent.trim());
+    const label = document.getElementById('catDropdownLabel');
+    const badge = document.getElementById('catCountBadge');
+    if(selected.length === 0){
+      label.textContent = 'Select categories…';
+      badge.style.display = 'none';
+    }else{
+      label.textContent = selected.slice(0,3).join(', ') + (selected.length>3 ? ' …' : '');
+      badge.textContent = selected.length;
+      badge.style.display = '';
+    }
+  }
+  function syncCheckboxesFromHidden(){
+    const hidden = document.getElementById('mealCategoriesHidden');
+    const set = new Set(Array.from(hidden.selectedOptions).map(o=>String(o.value)));
+    document.querySelectorAll('#catList input[type="checkbox"]').forEach(cb=>{
+      cb.checked = set.has(String(cb.dataset.id));
+    });
+    updateCatLabel();
+  }
+  function syncHiddenFromCheckboxes(){
+    const hidden = document.getElementById('mealCategoriesHidden');
+    const values = Array.from(document.querySelectorAll('#catList input[type="checkbox"]:checked')).map(cb=>String(cb.dataset.id));
+    Array.from(hidden.options).forEach(opt => opt.selected = values.includes(String(opt.value)));
+    updateCatLabel();
+  }
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    syncCheckboxesFromHidden();
+
+
+    document.getElementById('catList').addEventListener('change', (e)=>{
+      if(e.target.matches('input[type="checkbox"]')) syncHiddenFromCheckboxes();
+    });
+
+
+    const filter = document.getElementById('catFilter');
+    filter.addEventListener('input', ()=>{
+      const q = filter.value.trim().toLowerCase();
+      document.querySelectorAll('#catList .list-group-item').forEach(li=>{
+        const txt = li.textContent.trim().toLowerCase();
+        li.style.display = txt.includes(q) ? '' : 'none';
+      });
+    });
+  });
+
+
+  const DRAFT_KEY = 'recipe:draft:' + location.pathname;
+  const DRAFT_TTL_MIN = 45;
+  let __suppressNextSave = false;
+
+  function readDraft(){
+    const raw = sessionStorage.getItem(DRAFT_KEY);
+    if(!raw) return null;
+    try{
+      const parsed = JSON.parse(raw);
+      if(!parsed || typeof parsed !== 'object') return null;
+      const ts = parsed.__ts || 0;
+      const ageMin = (Date.now() - ts) / 60000;
+      if(ageMin > DRAFT_TTL_MIN) return null;
+      return parsed;
+    }catch{ return null; }
+  }
+  function writeDraft(data){
+    try{
+      data.__ts = Date.now();
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify(data));
+    }catch(_){}
+  }
+  function clearDraft(){
+    try{ sessionStorage.removeItem(DRAFT_KEY); }catch(_){}
+  }
+
   document.addEventListener('DOMContentLoaded', async ()=>{
-    // wire existing rows
     document.querySelectorAll('#ingredient-rows tr').forEach(wireRow);
     if(document.querySelectorAll('#ingredient-rows tr').length === 0) addRow();
 
-    // --- restore draft (autosave) ---
-    await (async function restoreDraft(){
-      const KEY = 'recipe:draft:' + location.pathname;
+    (async function restoreDraft(){
+      const url = new URL(location.href);
+      const createdId = url.searchParams.get('createdIngredient');
+      const allowOnce = sessionStorage.getItem('recipe:allowRestoreOnce') === '1';
+      const draft = readDraft();
+      const freshEnough = draft ? ((Date.now() - draft.__ts) <= 5*60000) : false;
+      const shouldRestore = !!draft && (createdId || allowOnce || freshEnough);
+      if(!shouldRestore) return;
+
       const form = document.querySelector('form.card');
       if(!form) return;
-      const raw = sessionStorage.getItem(KEY);
-      if(!raw) return;
-      let data; try{ data = JSON.parse(raw); } catch { return; }
 
-      // fields
       const setVal = (sel, v)=>{ const el=form.querySelector(sel); if(el!=null && v!=null){ el.value=v; } };
-      setVal('[name="title"]', data.title);
-      const diffEl = form.querySelector('#difficulty'); if(diffEl && data.difficulty!=null) diffEl.value = data.difficulty;
-      setVal('[name="preparationTimeMinutes"]', data.prep);
-      setVal('[name="servings"]', data.servings);
-      const categoriesSel = form.querySelector('[name="mealCategories"]');
-      if (categoriesSel && Array.isArray(data.categories)) {
-        const set = new Set(data.categories.map(String));
-        Array.from(categoriesSel.options).forEach(opt => opt.selected = set.has(String(opt.value)));
-      }
-      const instrEl = form.querySelector('[name="instructions"]'); if(instrEl && data.instructions!=null) instrEl.value = data.instructions;
+      setVal('[name="title"]', draft.title);
+      const diffEl = form.querySelector('#difficulty'); if(diffEl && draft.difficulty!=null) diffEl.value = draft.difficulty;
+      setVal('[name="preparationTimeMinutes"]', draft.prep);
+      setVal('[name="servings"]', draft.servings);
 
-      // ingredients
-      const want = Array.isArray(data.ingredients) ? data.ingredients.length : 0;
+      const hidden = document.getElementById('mealCategoriesHidden');
+      if (hidden && Array.isArray(draft.categories)) {
+        const set = new Set(draft.categories.map(String));
+        Array.from(hidden.options).forEach(opt => opt.selected = set.has(String(opt.value)));
+        syncCheckboxesFromHidden();
+      }
+
+      const instrEl = form.querySelector('[name="instructions"]'); if(instrEl && draft.instructions!=null) instrEl.value = draft.instructions;
+
+      const want = Array.isArray(draft.ingredients) ? draft.ingredients.length : 0;
       while (document.querySelectorAll('#ingredient-rows tr').length < want) addRow();
 
       const rows = Array.from(document.querySelectorAll('#ingredient-rows tr'));
       for (let i=0; i<want; i++){
-        const tr = rows[i], rec = data.ingredients[i] || {};
+        const tr = rows[i], rec = draft.ingredients[i] || {};
         const nameInput = tr.querySelector('.ingredient-search');
         const idHidden  = tr.querySelector('input[type="hidden"][name$=".ingredient.id"]');
         const amount    = tr.querySelector('input[name$=".amount"]');
@@ -398,15 +514,15 @@
           }
         }
       }
+
+      try{ sessionStorage.removeItem('recipe:allowRestoreOnce'); }catch(_){}
     })();
 
-    // --- apply createdIngredient (from AI return) ---
     (async function applyCreated(){
       const params = new URLSearchParams(location.search);
       const createdId = params.get('createdIngredient');
       if(!createdId) return;
 
-      // Try to drop it where the user last typed
       let target = null;
       const lastQuery = sessionStorage.getItem('recipe:lastIngredientQuery');
       if (lastQuery) {
@@ -434,22 +550,70 @@
       }
       try{ sessionStorage.removeItem('recipe:lastIngredientQuery'); }catch(_){}
     })();
+
+
+    document.getElementById('clearDraftBtn')?.addEventListener('click', ()=>{
+
+      clearDraft();
+      try{
+        sessionStorage.removeItem('recipe:lastIngredientQuery');
+        sessionStorage.removeItem('recipe:allowRestoreOnce');
+      }catch(_){}
+
+      const form = document.querySelector('form.card');
+      const hidden = document.getElementById('mealCategoriesHidden');
+
+      const titleEl = form.querySelector('[name="title"]'); if (titleEl) titleEl.value = '';
+      const diffEl  = form.querySelector('#difficulty');   if (diffEl)  diffEl.value  = '';
+      const prepEl  = form.querySelector('[name="preparationTimeMinutes"]'); if (prepEl) prepEl.value = '';
+      const servEl  = form.querySelector('[name="servings"]'); if (servEl) servEl.value = '';
+      const instrEl = form.querySelector('[name="instructions"]'); if (instrEl) instrEl.value = '';
+
+
+      if (hidden) Array.from(hidden.options).forEach(o=>o.selected=false);
+      document.querySelectorAll('#catList input[type="checkbox"]').forEach(cb=>cb.checked=false);
+      updateCatLabel();
+
+
+      const tbody = document.getElementById('ingredient-rows');
+      if (tbody) {
+        tbody.innerHTML = '';
+        addRow();
+      }
+
+      __suppressNextSave = true;
+      setTimeout(()=>{ __suppressNextSave = false; }, 800);
+
+      const url = new URL(location.href);
+      if (url.searchParams.has('createdIngredient')) {
+        url.searchParams.delete('createdIngredient');
+        history.replaceState(null, '', url.toString());
+      }
+
+      const btn = document.getElementById('clearDraftBtn');
+      const orig = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Draft cleared';
+      setTimeout(()=>{ btn.textContent = orig; btn.disabled = false; }, 1200);
+    });
   });
 
-  // --- simple autosave (snapshot) ---
   (function autosave(){
-    const KEY = 'recipe:draft:' + location.pathname;
     const form = document.querySelector('form.card');
     if(!form) return;
+
     function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+
     function snapshot(){
-      const categoriesSel = form.querySelector('[name="mealCategories"]');
+      if (__suppressNextSave) return;
+      const hidden = document.getElementById('mealCategoriesHidden');
       const data = {
+        __ts: Date.now(),
         title: form.querySelector('[name="title"]')?.value ?? '',
         difficulty: form.querySelector('#difficulty')?.value ?? '',
         prep: form.querySelector('[name="preparationTimeMinutes"]')?.value ?? '',
         servings: form.querySelector('[name="servings"]')?.value ?? '',
-        categories: categoriesSel ? Array.from(categoriesSel.selectedOptions).map(o=>o.value) : [],
+        categories: hidden ? Array.from(hidden.selectedOptions).map(o=>o.value) : [],
         instructions: form.querySelector('[name="instructions"]')?.value ?? '',
         ingredients: Array.from(document.querySelectorAll('#ingredient-rows tr')).map(tr=>{
           const nameInput = tr.querySelector('.ingredient-search');
@@ -464,14 +628,26 @@
           };
         })
       };
-      try { sessionStorage.setItem(KEY, JSON.stringify(data)); } catch(_) {}
+      writeDraft(data);
     }
+
     const saveNow = debounce(snapshot, 200);
     form.addEventListener('input', saveNow);
     window.addEventListener('beforeunload', snapshot);
-    form.addEventListener('submit', ()=>{ try{ sessionStorage.removeItem(KEY); }catch(_){} });
+
+    form.addEventListener('submit', ()=>{
+      try{ sessionStorage.removeItem('recipe:lastIngredientQuery'); }catch(_){}
+    });
+
+    document.addEventListener('click', (e)=>{
+      const a = e.target.closest('a[href]');
+      if(!a) return;
+      if(a.href.includes('/ingredients/new-ai')) return;
+      try{ sessionStorage.removeItem('recipe:allowRestoreOnce'); }catch(_){}
+    });
   })();
 </script>
+
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

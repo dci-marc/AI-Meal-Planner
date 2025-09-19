@@ -110,14 +110,15 @@ public class RecipeController {
                                @RequestParam(value = "redirectUrl", required = false) String redirectUrl,
                                Model model) {
         String email = AuthUtils.getUserEmail(authentication);
+
         if (bindingResult.hasErrors()) {
             model.addAttribute("recipe", updateRecipeDTO);
             prepareFormModel(model, redirectUrl);
             return "recipes/recipe_form";
         }
-        recipeService.addNewRecipe(updateRecipeDTO, imageFile, email);
-        String target = resolveRedirectUrl(redirectUrl, "/recipes");
-        return "redirect:" + target;
+
+        Recipe saved = recipeService.addNewRecipe(updateRecipeDTO, imageFile, email);
+        return "redirect:/recipes/" + saved.getId();
     }
 
     @GetMapping("/edit/{id}")
@@ -140,14 +141,15 @@ public class RecipeController {
                                @RequestParam(value = "redirectUrl", required = false) String redirectUrl,
                                Model model) {
         String email = AuthUtils.getUserEmail(authentication);
+
         if (bindingResult.hasErrors()) {
             model.addAttribute("recipe", updateRecipeDTO);
             prepareFormModel(model, redirectUrl);
             return "recipes/recipe_form";
         }
-        recipeService.updateRecipe(id, updateRecipeDTO, imageFile, email);
-        String target = resolveRedirectUrl(redirectUrl, "/recipes");
-        return "redirect:" + target;
+
+        Recipe updated = recipeService.updateRecipe(id, updateRecipeDTO, imageFile, email);
+        return "redirect:/recipes/" + updated.getId();
     }
 
     @GetMapping("/{id}")
@@ -157,7 +159,7 @@ public class RecipeController {
                                    Model model) {
         Recipe recipe = recipeService.findById(id);
         UserBasicDTO authorDTO = userInformationService.getUserBasicDTO(recipe.getAuthor());
-        UserBasicDTO loggedUser =  userInformationService.getUserBasicDTO(authentication);
+        UserBasicDTO loggedUser = userInformationService.getUserBasicDTO(authentication);
         if (recipe.getAuthor() != null) {
             model.addAttribute("author", authorDTO);
         }
@@ -219,12 +221,5 @@ public class RecipeController {
         String email = AuthUtils.getUserEmail(authentication);
         Recipe recipe = recipeService.saveFromAI(aiRecipe, email);
         return "redirect:/recipes/" + recipe.getId();
-    }
-
-    private String resolveRedirectUrl(String candidate, String fallback) {
-        String safeFallback = (fallback == null || fallback.isBlank()) ? "/recipes" : fallback;
-        if (candidate == null || candidate.isBlank()) return safeFallback;
-        if (candidate.startsWith("/")) return candidate;
-        return safeFallback;
     }
 }
