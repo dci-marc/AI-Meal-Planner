@@ -40,9 +40,7 @@ public class MealPlanController {
         User loggedUser = userService.findByEmail(email);
         List<MealPlan> plans = mealPlanningService.listPlansForUser(loggedUser.getId());
         model.addAttribute("plans", plans);
-        model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(loggedUser));
-        String referer = request.getHeader("Referer");
-        model.addAttribute("backUrl", referer);
+        model.addAttribute("backUrl", request.getHeader("Referer"));
 
         return "planning/mealplans_list";
     }
@@ -59,9 +57,7 @@ public class MealPlanController {
                 null
         );
         model.addAttribute("mealPlan", dto);
-        model.addAttribute("loggedInUser", loggedUser);
         model.addAttribute("redirectUrl", request.getHeader("Referer"));
-        model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(loggedUser));
         return "planning/mealplan_form";
     }
 
@@ -78,9 +74,7 @@ public class MealPlanController {
 
         if (bindingResult.hasErrors()) {
             model.addAttribute("mealPlan", createMealPlanDTO);
-            model.addAttribute("loggedInUser", loggedUser);
             model.addAttribute("redirectUrl", redirectUrl);
-            model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(loggedUser));
             return "planning/mealplan_form";
         }
         MealPlan plan = mealPlanningService.createPlan(loggedUser.getId(), createMealPlanDTO);
@@ -123,7 +117,6 @@ public class MealPlanController {
             model.addAttribute("addEntry", new AddMealEntryDTO(
                     plan.getId(), plan.getStartDate(), MealSlot.BREAKFAST, null, null
             ));
-            model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(loggedUser));
             model.addAttribute("redirectUrl", request.getHeader("Referer"));
             return "planning/mealplan_detail";
         } catch (Exception e) {

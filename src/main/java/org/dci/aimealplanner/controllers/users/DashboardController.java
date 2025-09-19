@@ -34,15 +34,13 @@ public class DashboardController {
 
     @GetMapping("/recipes")
     @PreAuthorize("isAuthenticated()")
-    public String recipesHub(Authentication authentication, Model model) {
-        model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(authentication));
+    public String recipesHub() {
         return "dashboard/recipes/recipe_hub";
     }
 
     @GetMapping("/meals")
     @PreAuthorize("isAuthenticated()")
-    public String mealsHub(Authentication authentication, Model model) {
-        model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(authentication));
+    public String mealsHub() {
         return "dashboard/planning/planning_hub";
     }
 
@@ -50,8 +48,6 @@ public class DashboardController {
     @PreAuthorize("isAuthenticated()")
     public String upcomingMeals(Authentication authentication, Model model) {
         UserBasicDTO user = userInformationService.getUserBasicDTO(authentication);
-        model.addAttribute("loggedInUser", user);
-
         var nextMeals = planningSnapshotService.nextMeals(user.email(), 10);
         model.addAttribute("nextMeals", nextMeals);
 
