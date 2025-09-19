@@ -139,7 +139,7 @@
                     <p class="text-muted mb-3">
                         Calculated from ingredient amounts
                         <span th:if="${recipe != null and recipe.servings != null}">
-                            • Servings: <strong th:text="${recipe.servings}"></strong>
+                            • Servings: <strong th:text="${recipe.servings.stripTrailingZeros().toPlainString()}"></strong>
                         </span>
                     </p>
                     <div class="row g-3">
