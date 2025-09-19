@@ -1,4 +1,4 @@
-package org.dci.aimealplanner.controllers.recipes;
+package org.dci.aimealplanner.controllers.api;
 
 import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.controllers.auth.AuthUtils;

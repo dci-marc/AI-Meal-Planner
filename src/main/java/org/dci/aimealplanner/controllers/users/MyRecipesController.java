@@ -62,7 +62,6 @@ public class MyRecipesController {
         Page<Recipe> recipesPage = recipeService.findByAuthorAndSourceType
                 (current.id(), sourceType, pageable);
 
-        model.addAttribute("LoggedInUser", current);
         model.addAttribute("title", title);
         model.addAttribute("scope", sourceType == SourceType.USER ? "my" : "ai");
         model.addAttribute("basePath", basePath);
@@ -72,9 +71,7 @@ public class MyRecipesController {
 
     @GetMapping("/new")
     @PreAuthorize("isAuthenticated()")
-    public String newRecipeForm(Authentication authentication, Model model) {
-        UserBasicDTO current = userInformationService.getUserBasicDTO(authentication);
-        model.addAttribute("LoggedInUser", current);
+    public String newRecipeForm(Model model) {
         model.addAttribute("form", RecipeForm.blank());
         model.addAttribute("difficulties", Difficulty.values());
         model.addAttribute("mode", "create");
@@ -89,7 +86,6 @@ public class MyRecipesController {
                                Model model,
                                RedirectAttributes ra) {
         if (br.hasErrors()) {
-            model.addAttribute("LoggedInUser", userInformationService.getUserBasicDTO(authentication));
             model.addAttribute("difficulties", Difficulty.values());
             model.addAttribute("mode", "create");
             return "dashboard/recipes/user_recipe_form";
@@ -107,7 +103,6 @@ public class MyRecipesController {
                                  Model model) {
         var current = userInformationService.getUserBasicDTO(authentication);
         var entity = recipeService.getUserRecipeForEdit(current.id(), id);
-        model.addAttribute("LoggedInUser", current);
         model.addAttribute("form", RecipeForm.from(entity));
         model.addAttribute("difficulties", Difficulty.values());
         model.addAttribute("mode", "edit");
@@ -125,7 +120,6 @@ public class MyRecipesController {
                                RedirectAttributes ra) {
         var current = userInformationService.getUserBasicDTO(authentication);
         if (br.hasErrors()) {
-            model.addAttribute("LoggedInUser", current);
             model.addAttribute("difficulties", Difficulty.values());
             model.addAttribute("mode", "edit");
             model.addAttribute("recipeId", id);

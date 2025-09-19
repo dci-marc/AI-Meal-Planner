@@ -41,7 +41,11 @@
                            placeholder="e.g., chicken breast, garlic, lemon, olive oil"
                            required>
                 </div>
-                <button type="submit" class="btn btn-primary">Generate</button>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Generate</button>
+                    <!-- Back button -->
+                    <a th:href="${redirectUrl}" class="btn btn-outline-secondary">Back</a>
+                </div>
             </form>
         </div>
     </div>

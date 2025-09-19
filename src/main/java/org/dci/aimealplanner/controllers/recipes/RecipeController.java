@@ -75,9 +75,6 @@ public class RecipeController {
                         ui -> UserBasicDTO.from(ui.getUser(), ui)
                 ));
 
-        if (authentication != null) {
-            model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(authentication));
-        }
 
         model.addAttribute("authorsMap", authors);
         model.addAttribute("recipesPage", recipesPage);
@@ -96,13 +93,12 @@ public class RecipeController {
     }
 
     @GetMapping("/new")
-    public String newRecipe(Authentication authentication, Model model, HttpServletRequest request) {
-        model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(authentication));
+    public String newRecipe(Model model, HttpServletRequest request) {
         Recipe recipe = new Recipe();
         recipe.setIngredients(new ArrayList<>());
         recipe.setMealCategories(new HashSet<>());
         model.addAttribute("recipe", RecipeDTO.from(recipe));
-        prepareFormModel(model, authentication, request.getHeader("Referer"));
+        prepareFormModel(model, request.getHeader("Referer"));
         return "recipes/recipe_form";
     }
 
@@ -112,29 +108,26 @@ public class RecipeController {
                                @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
                                Authentication authentication,
                                @RequestParam(value = "redirectUrl", required = false) String redirectUrl,
-                               Model model,
-                               HttpServletRequest request) {
+                               Model model) {
         String email = AuthUtils.getUserEmail(authentication);
         if (bindingResult.hasErrors()) {
             model.addAttribute("recipe", updateRecipeDTO);
-            prepareFormModel(model, authentication, redirectUrl);
+            prepareFormModel(model, redirectUrl);
             return "recipes/recipe_form";
         }
         recipeService.addNewRecipe(updateRecipeDTO, imageFile, email);
-        String target = resolveRedirectUrl(redirectUrl, request, "/recipes");
+        String target = resolveRedirectUrl(redirectUrl, "/recipes");
         return "redirect:" + target;
     }
 
     @GetMapping("/edit/{id}")
     public String showEditForm(@PathVariable Long id,
-                               Authentication authentication,
                                HttpServletRequest request,
                                Model model) {
-        String email = AuthUtils.getUserEmail(authentication);
         Recipe recipe = recipeService.findById(id);
         RecipeDTO recipeDTO = RecipeDTO.from(recipe);
         model.addAttribute("recipe", recipeDTO);
-        prepareFormModel(model, authentication, request.getHeader("Referer"));
+        prepareFormModel(model, request.getHeader("Referer"));
         return "recipes/recipe_form";
     }
 
@@ -145,16 +138,15 @@ public class RecipeController {
                                @RequestParam(required = false) MultipartFile imageFile,
                                Authentication authentication,
                                @RequestParam(value = "redirectUrl", required = false) String redirectUrl,
-                               Model model,
-                               HttpServletRequest request) {
+                               Model model) {
         String email = AuthUtils.getUserEmail(authentication);
         if (bindingResult.hasErrors()) {
             model.addAttribute("recipe", updateRecipeDTO);
-            prepareFormModel(model, authentication, redirectUrl);
+            prepareFormModel(model, redirectUrl);
             return "recipes/recipe_form";
         }
         recipeService.updateRecipe(id, updateRecipeDTO, imageFile, email);
-        String target = resolveRedirectUrl(redirectUrl, request, "/recipes");
+        String target = resolveRedirectUrl(redirectUrl, "/recipes");
         return "redirect:" + target;
     }
 
@@ -170,7 +162,6 @@ public class RecipeController {
             model.addAttribute("author", authorDTO);
         }
         model.addAttribute("recipe", RecipeViewDTO.from(recipe));
-        model.addAttribute("loggedInUser", loggedUser);
         model.addAttribute("currentUserId", loggedUser.id());
         model.addAttribute("redirectUrl", request.getHeader("Referer"));
         return "recipes/recipe-details";
@@ -198,14 +189,14 @@ public class RecipeController {
     }
 
     @GetMapping("/ask-ai")
-    public String askAi(Authentication authentication, Model model) {
-        model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(authentication));
+    public String askAi(Model model,
+                        HttpServletRequest request) {
+        model.addAttribute("redirectUrl", request.getHeader("Referer"));
         return "recipes/ask_ai";
     }
 
     @PostMapping("/generate")
-    public String generate(@RequestParam String prompt, Authentication authentication, Model model) {
-        model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(authentication));
+    public String generate(@RequestParam String prompt, Model model) {
         try {
             RecipeFromAI aiRecipe = groqApiClient.generateRecipeFromPrompt(prompt);
             model.addAttribute("aiRecipe", aiRecipe);
@@ -216,8 +207,7 @@ public class RecipeController {
         }
     }
 
-    private void prepareFormModel(Model model, Authentication authentication, String redirectUrl) {
-        model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(authentication));
+    private void prepareFormModel(Model model, String redirectUrl) {
         model.addAttribute("difficulties", Difficulty.values());
         model.addAttribute("categories", mealCategoryService.findAll());
         model.addAttribute("ingredientCategories", ingredientCategoryService.findAll());
@@ -231,7 +221,7 @@ public class RecipeController {
         return "redirect:/recipes/" + recipe.getId();
     }
 
-    private String resolveRedirectUrl(String candidate, HttpServletRequest request, String fallback) {
+    private String resolveRedirectUrl(String candidate, String fallback) {
         String safeFallback = (fallback == null || fallback.isBlank()) ? "/recipes" : fallback;
         if (candidate == null || candidate.isBlank()) return safeFallback;
         if (candidate.startsWith("/")) return candidate;

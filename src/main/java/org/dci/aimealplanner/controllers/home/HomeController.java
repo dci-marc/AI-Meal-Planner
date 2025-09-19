@@ -24,7 +24,6 @@ public class HomeController {
     public String index(Authentication authentication, Model model) {
         if (authentication != null) {
             String email = AuthUtils.getUserEmail(authentication);
-            model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(authentication));
             model.addAttribute("nextMeals", planningSnapshotService.nextMeals(email, 2));
         }
         List<RecipeCardDTO> featured = recipeService.getFeaturedForHomepage(3);

@@ -33,7 +33,7 @@ public class ProfileController {
                 .orElseGet(UserInformation::new);
 
         model.addAttribute("userInformation", info);
-        prepareFormModel(model, authentication);
+        prepareFormModel(model);
         return "profile/user-profile";
     }
 
@@ -44,7 +44,7 @@ public class ProfileController {
                               @RequestParam(value = "dietaryPreferenceIds", required = false) List<Long> dietaryPreferenceIds,
                               Model model) {
         if (bindingResult.hasErrors()) {
-            prepareFormModel(model, authentication);
+            prepareFormModel(model);
             return "profile/user-profile";
         }
 
@@ -63,8 +63,7 @@ public class ProfileController {
         return "redirect:/dashboard";
     }
 
-    private void prepareFormModel(Model model, Authentication authentication) {
-        model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(authentication));
+    private void prepareFormModel(Model model) {
         model.addAttribute("activityLevels", ActivityLevel.values());
         model.addAttribute("genderList", Gender.values());
         model.addAttribute("goals", Goal.values());

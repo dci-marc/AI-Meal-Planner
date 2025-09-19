@@ -1,4 +1,4 @@
-package org.dci.aimealplanner.controllers.home;
+package org.dci.aimealplanner.controllers.api;
 
 import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.models.recipes.RecipeCardDTO;

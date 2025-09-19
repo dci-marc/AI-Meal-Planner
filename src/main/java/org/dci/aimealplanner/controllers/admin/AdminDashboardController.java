@@ -49,11 +49,8 @@ public class AdminDashboardController {
     public String adminRecipes(@RequestParam(defaultValue = "ALL") String source,
                                @RequestParam(defaultValue = "0") int page,
                                @RequestParam(defaultValue = "10") int size,
-                               Authentication authentication,
                                Model model,
                                HttpServletRequest request) {
-
-        model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(authentication));
 
         model.addAttribute("backUrl", request.getHeader("Referer"));
 
@@ -92,11 +89,8 @@ public class AdminDashboardController {
                              @RequestParam(defaultValue = "") String q,
                              @RequestParam(defaultValue = "0") int page,
                              @RequestParam(defaultValue = "10") int size,
-                             Authentication authentication,
                              Model model,
                              HttpServletRequest request) {
-
-        model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(authentication));
 
         model.addAttribute("backUrl", request.getHeader("Referer"));
 
@@ -182,11 +176,8 @@ public class AdminDashboardController {
     public String adminMealPlans(@RequestParam(defaultValue = "") String q,
                                  @RequestParam(defaultValue = "0") int page,
                                  @RequestParam(defaultValue = "10") int size,
-                                 Authentication authentication,
                                  Model model,
                                  HttpServletRequest request) {
-
-        model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(authentication));
         model.addAttribute("backUrl", request.getHeader("Referer"));
 
         model.addAttribute("totalMealPlans", adminDashboardService.totalMealPlans());
@@ -211,11 +202,8 @@ public class AdminDashboardController {
 
     @GetMapping("/meal-plans/{id}")
     public String viewMealPlan(@PathVariable Long id,
-                               Authentication authentication,
                                Model model,
                                HttpServletRequest request) {
-        model.addAttribute("loggedInUser", userInformationService.getUserBasicDTO(authentication));
-
         var mealPlan = adminDashboardService.findMealPlanById(id);
         model.addAttribute("mealPlan", mealPlan);
 

@@ -23,7 +23,6 @@ public class SettingsController {
     @PreAuthorize("isAuthenticated()")
     public String settings(Authentication authentication, Model model) {
         UserBasicDTO currentUser = userInformationService.getUserBasicDTO(authentication);
-        model.addAttribute("loggedInUser", currentUser);
 
         boolean isLocalUser = currentUser.userType() == UserType.LOCAL;
         boolean isGoogleUser = currentUser.userType() == UserType.GOOGLE;
