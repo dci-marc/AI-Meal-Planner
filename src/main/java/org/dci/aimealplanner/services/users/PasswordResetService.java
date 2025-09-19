@@ -3,6 +3,7 @@ package org.dci.aimealplanner.services.users;
 import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.entities.users.PasswordResetToken;
 import org.dci.aimealplanner.entities.users.User;
+import org.dci.aimealplanner.exceptions.VerificationTokenInvalidException;
 import org.dci.aimealplanner.models.UserType;
 import org.dci.aimealplanner.repositories.users.PasswordResetTokenRepository;
 import org.dci.aimealplanner.repositories.users.UserRepository;
@@ -67,10 +68,10 @@ public class PasswordResetService {
     @Transactional
     public void resetPassword(String token, String newPassword) {
         PasswordResetToken resetToken = tokenRepository.findByToken(token)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid token"));
+                .orElseThrow(() -> new VerificationTokenInvalidException("Invalid token"));
 
         if (resetToken.isUsed() || resetToken.getExpiresAt().isBefore(Instant.now())) {
-            throw new IllegalArgumentException("Token expired or already used");
+            throw new VerificationTokenInvalidException("Token expired or already used");
         }
 
         User user = resetToken.getUser();

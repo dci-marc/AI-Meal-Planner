@@ -4,12 +4,12 @@ import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.entities.ingredients.Ingredient;
 import org.dci.aimealplanner.entities.ingredients.IngredientUnitRatio;
 import org.dci.aimealplanner.entities.ingredients.Unit;
+import org.dci.aimealplanner.exceptions.UnitRatioNotFoundException;
 import org.dci.aimealplanner.repositories.ingredients.IngredientUnitRatioRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 @Service
@@ -43,7 +43,7 @@ public class IngredientUnitRatioService {
 
     public IngredientUnitRatio findRatio(Ingredient ingredient, Unit unit) {
         return ingredientUnitRatioRepository.findByIngredientAndUnit(ingredient, unit)
-                .orElseThrow(() -> new RuntimeException("Ratio not found"));
+                .orElseThrow(() -> new UnitRatioNotFoundException("Ratio not found"));
     }
 
     public IngredientUnitRatio save(IngredientUnitRatio row) {

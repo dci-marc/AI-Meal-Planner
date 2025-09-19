@@ -2,6 +2,7 @@ package org.dci.aimealplanner.services.ingredients;
 
 import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.entities.ingredients.*;
+import org.dci.aimealplanner.exceptions.InvalidIngredientException;
 import org.dci.aimealplanner.integration.aiapi.GroqApiClient;
 import org.dci.aimealplanner.integration.aiapi.dtos.ingredients.IngredientFromAI;
 import org.springframework.stereotype.Service;
@@ -22,7 +23,7 @@ public class IngredientResolverService {
     @Transactional
     public Ingredient resolveOrCreate(String rawName) {
         if (rawName == null || rawName.isBlank()) {
-            throw new IllegalArgumentException("Ingredient name is blank");
+            throw new InvalidIngredientException("Ingredient name is blank");
         }
         String name = rawName.trim();
 
@@ -35,7 +36,7 @@ public class IngredientResolverService {
 
     @Transactional
     public Unit ensureUnit(String code, String display) {
-        if (code == null || code.isBlank()) throw new IllegalArgumentException("Unit code is blank");
+        if (code == null || code.isBlank()) throw new InvalidIngredientException("Unit code is blank");
         String norm = code.trim().toLowerCase();
         Unit unit = unitService.findByCode(norm);
         if (unit != null) return unit;

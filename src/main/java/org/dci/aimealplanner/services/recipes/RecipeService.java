@@ -1,7 +1,7 @@
 package org.dci.aimealplanner.services.recipes;
 
 import lombok.RequiredArgsConstructor;
-import org.dci.aimealplanner.entities.ImageMetaData;
+import org.dci.aimealplanner.entities.recipes.ImageMetaData;
 import org.dci.aimealplanner.entities.ingredients.Ingredient;
 import org.dci.aimealplanner.entities.ingredients.IngredientUnitRatio;
 import org.dci.aimealplanner.entities.ingredients.NutritionFact;
@@ -9,6 +9,8 @@ import org.dci.aimealplanner.entities.ingredients.Unit;
 import org.dci.aimealplanner.entities.recipes.MealCategory;
 import org.dci.aimealplanner.entities.recipes.Recipe;
 import org.dci.aimealplanner.entities.recipes.RecipeIngredient;
+import org.dci.aimealplanner.exceptions.IngredientNotFoundException;
+import org.dci.aimealplanner.exceptions.RecipeNotFoundException;
 import org.dci.aimealplanner.integration.aiapi.dtos.recipes.RecipeFromAI;
 import org.dci.aimealplanner.models.Difficulty;
 import org.dci.aimealplanner.models.SourceType;
@@ -95,7 +97,7 @@ public class RecipeService {
 
                     managedChild = existingById.get(childId);
                     if (managedChild == null) {
-                        throw new IllegalArgumentException("Ingredient row not found: id=" + childId);
+                        throw new IngredientNotFoundException("Ingredient row not found: id=" + childId);
                     }
 
                     managedChild.setIngredient(ing);
@@ -127,7 +129,7 @@ public class RecipeService {
 
 
     public Recipe findById(long id) {
-        return recipeRepository.findById(id).orElseThrow(() -> new RuntimeException("Recipe with id " + id + " not found"));
+        return recipeRepository.findById(id).orElseThrow(() -> new RecipeNotFoundException("Recipe with id " + id + " not found"));
     }
 
     private List<RecipeIngredient> normalizeAndResolveIngredients(UpdateRecipeDTO recipeDTO) {
@@ -378,7 +380,7 @@ public class RecipeService {
     @Transactional(readOnly = true)
     public Recipe getUserRecipeForEdit(Long userId, Long recipeId) {
         var r = recipeRepository.findById(recipeId)
-                .orElseThrow(() -> new IllegalArgumentException("Recipe not found"));
+                .orElseThrow(() -> new RecipeNotFoundException("Recipe not found"));
         if (r.getAuthor() == null || !r.getAuthor().getId().equals(userId)) {
             throw new SecurityException("Not allowed to edit this recipe");
         }

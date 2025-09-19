@@ -3,9 +3,9 @@ package org.dci.aimealplanner.controllers.auth;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.entities.users.User;
-import org.dci.aimealplanner.exceptions.EmailAlreadyTaken;
-import org.dci.aimealplanner.exceptions.PasswordInvalid;
-import org.dci.aimealplanner.exceptions.VerificationTokenInvalid;
+import org.dci.aimealplanner.exceptions.EmailAlreadyTakenException;
+import org.dci.aimealplanner.exceptions.PasswordInvalidException;
+import org.dci.aimealplanner.exceptions.VerificationTokenInvalidException;
 import org.dci.aimealplanner.services.users.PasswordResetService;
 import org.dci.aimealplanner.services.users.UserService;
 import org.springframework.stereotype.Controller;
@@ -44,7 +44,7 @@ public class AuthController {
         try {
             userService.checkEmailAvailability(user.getEmail());
             userService.checkPasswordValidity(user.getPassword());
-        } catch (EmailAlreadyTaken | PasswordInvalid ex) {
+        } catch (EmailAlreadyTakenException | PasswordInvalidException ex) {
             errors.add(ex.getMessage());
         }
 
@@ -67,7 +67,7 @@ public class AuthController {
        try {
            userService.verifyToken(token);
            return "redirect:/auth/login?verified";
-       } catch (VerificationTokenInvalid ex){
+       } catch (VerificationTokenInvalidException ex){
             return "redirect:/auth/login?invalidToken";
         }
     }

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.entities.ingredients.*;
+import org.dci.aimealplanner.exceptions.IngredientNotFoundException;
 import org.dci.aimealplanner.integration.aiapi.GroqApiClient;
 import org.dci.aimealplanner.integration.aiapi.dtos.ingredients.IngredientFromAI;
 import org.dci.aimealplanner.integration.foodapi.dto.FoodItem;
@@ -58,7 +59,7 @@ public class IngredientService {
     }
 
     public Ingredient findById(Long id) {
-        return ingredientRepository.findById(id).orElseThrow(() -> new RuntimeException("Ingredient not found"));
+        return ingredientRepository.findById(id).orElseThrow(() -> new IngredientNotFoundException("Ingredient not found"));
     }
 
     public Page<IngredientSummary> search(String query, PageRequest pageRequest) {

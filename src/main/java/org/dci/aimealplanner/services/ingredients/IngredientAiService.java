@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.entities.ingredients.Ingredient;
 import org.dci.aimealplanner.entities.ingredients.IngredientUnitRatio;
 import org.dci.aimealplanner.entities.ingredients.Unit;
+import org.dci.aimealplanner.exceptions.InvalidIngredientException;
 import org.dci.aimealplanner.integration.aiapi.GroqApiClient;
 import org.dci.aimealplanner.integration.aiapi.dtos.ingredients.IngredientFromAI;
 import org.springframework.stereotype.Service;
@@ -41,9 +42,9 @@ public class IngredientAiService {
     @Transactional
     public Ingredient saveFromAi(IngredientFromAI ai) {
         String raw = ai.getName();
-        String name = raw == null ? "" : raw.trim().replaceAll("\\s+", " "); // normalize spaces
+        String name = raw == null ? "" : raw.trim().replaceAll("\\s+", " ");
         if (!StringUtils.hasText(name)) {
-            throw new IllegalArgumentException("AI payload missing ingredient name");
+            throw new InvalidIngredientException("AI payload missing ingredient name");
         }
 
         var existing = ingredientService.findByNameIgnoreCase(name);

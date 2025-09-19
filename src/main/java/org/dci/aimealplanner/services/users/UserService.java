@@ -2,10 +2,10 @@ package org.dci.aimealplanner.services.users;
 
 import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.entities.users.User;
-import org.dci.aimealplanner.exceptions.EmailAlreadyTaken;
-import org.dci.aimealplanner.exceptions.PasswordInvalid;
+import org.dci.aimealplanner.exceptions.EmailAlreadyTakenException;
+import org.dci.aimealplanner.exceptions.PasswordInvalidException;
 import org.dci.aimealplanner.exceptions.UserNotFoundException;
-import org.dci.aimealplanner.exceptions.VerificationTokenInvalid;
+import org.dci.aimealplanner.exceptions.VerificationTokenInvalidException;
 import org.dci.aimealplanner.models.Role;
 import org.dci.aimealplanner.models.UserType;
 import org.dci.aimealplanner.repositories.users.UserRepository;
@@ -59,13 +59,13 @@ public class UserService implements UserDetailsService {
 
     public void checkEmailAvailability(String email) {
         if(userRepository.findByEmail(email).isPresent()) {
-            throw new EmailAlreadyTaken(String.format("Email: %s is already taken.", email));
+            throw new EmailAlreadyTakenException(String.format("Email: %s is already taken.", email));
         }
     }
 
     public void checkPasswordValidity(String password) {
         if (!ifPasswordMatchesPattern(password)) {
-            throw new PasswordInvalid("Password must be at least 6 characters and contain uppercase," +
+            throw new PasswordInvalidException("Password must be at least 6 characters and contain uppercase," +
                     " lowercase, number and special character");
         }
     }
@@ -89,7 +89,7 @@ public class UserService implements UserDetailsService {
     public User findByVerificationToken(String token) {
         return userRepository.findByVerificationToken(token)
                 .orElseThrow(() ->
-                        new VerificationTokenInvalid("User with verification token %s not found.".
+                        new VerificationTokenInvalidException("User with verification token %s not found.".
                                 formatted(token))
                 );
     }
@@ -110,7 +110,7 @@ public class UserService implements UserDetailsService {
     }
 
     public User findByEmail(String email) {
-       return userRepository.findByEmail(email).orElseThrow(() -> new EmailAlreadyTaken(email));
+       return userRepository.findByEmail(email).orElseThrow(() -> new EmailAlreadyTakenException(email));
     }
 
     public User findById(Long id) {
@@ -145,7 +145,7 @@ public class UserService implements UserDetailsService {
             throw new IllegalArgumentException("New email must be different from the current email.");
         }
         if (!emailIsNotTaken(normalized)) {
-            throw new EmailAlreadyTaken("Email: %s is already taken.".formatted(normalized));
+            throw new EmailAlreadyTakenException("Email: %s is already taken.".formatted(normalized));
         }
 
         user.setEmail(normalized);

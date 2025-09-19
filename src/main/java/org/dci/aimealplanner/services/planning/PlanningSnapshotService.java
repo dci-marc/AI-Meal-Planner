@@ -24,38 +24,6 @@ public class PlanningSnapshotService {
     private final MealEntryRepository  mealEntryRepository;
     private final UserService userService;
 
-//    public List<NextMealDTO> nextMeals(String email, int limit) {
-//        User u = userService.findByEmail(email);
-//        var entries = mealEntryRepository.upcomingForUser(u.getId(), LocalDate.now());
-//        return entries.stream()
-//                .limit(Math.max(1, Math.min(limit, 4)))
-//                .map(this::toDto)
-//                .toList();
-//    }
-//
-//    private NextMealDTO toDto(MealEntry e) {
-//        var r = e.getRecipe();
-//        String hero = (r.getImage() != null) ? r.getImage().getImageUrl() : null;
-//
-//        BigDecimal perServing = null;
-//        if (r.getKcalPerServ() != null) {
-//            BigDecimal servings = (r.getServings() == null || r.getServings().compareTo(BigDecimal.ZERO) <= 0)
-//                    ? BigDecimal.ONE : r.getServings();
-//            perServing = r.getKcalPerServ().divide(servings, 0, RoundingMode.HALF_UP);
-//        }
-//
-//        RecipeCardDTO card = new RecipeCardDTO(
-//                r.getId(),
-//                r.getTitle(),
-//                hero,
-//                r.getPreparationTimeMinutes(),
-//                perServing
-//        );
-//
-//        return new NextMealDTO(e.getEntryDate(), e.getMealSlot().name(), card,
-//                e.getServings() == null ? BigDecimal.ONE : e.getServings());
-//    }
-
     public List<NextMealDTO> nextMeals(String email, int limit) {
         User u = userService.findByEmail(email);
 

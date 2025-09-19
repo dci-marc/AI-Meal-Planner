@@ -29,7 +29,6 @@ import java.util.List;
 public class MealPlanAiService {
     private final GroqApiClient groqApiClient;
     private final UserInformationService userInformationService;
-    private final UserService userService;
     private final MealPlanningService mealPlanningService;
     private final RecipeService recipeService;
 
@@ -117,7 +116,7 @@ public class MealPlanAiService {
 
         Integer kcalPerMeal = null;
         if (targetKcalPerDay != null && mealsPerDay != null && mealsPerDay > 0) {
-            kcalPerMeal = Math.max(250, targetKcalPerDay / mealsPerDay); // simple floor
+            kcalPerMeal = Math.max(250, targetKcalPerDay / mealsPerDay);
         }
 
         StringBuilder sb = new StringBuilder();

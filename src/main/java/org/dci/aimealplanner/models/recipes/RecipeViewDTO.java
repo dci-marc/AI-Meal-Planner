@@ -1,13 +1,12 @@
 package org.dci.aimealplanner.models.recipes;
 
-import org.dci.aimealplanner.entities.ImageMetaData;
+import org.dci.aimealplanner.entities.recipes.ImageMetaData;
 import org.dci.aimealplanner.entities.recipes.MealCategory;
 import org.dci.aimealplanner.entities.recipes.Recipe;
 import org.dci.aimealplanner.entities.recipes.RecipeIngredient;
 import org.dci.aimealplanner.models.Difficulty;
 import org.dci.aimealplanner.models.SourceType;
 
-import javax.xml.transform.Source;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Set;
