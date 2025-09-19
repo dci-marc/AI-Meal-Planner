@@ -30,9 +30,4 @@ public class HomeController {
         model.addAttribute("featuredRecipes", featured);
         return "home/index";
     }
-
-    @GetMapping("/account")
-    public String account() {
-        return "home/user_dashboard";
-    }
 }

@@ -1,7 +1,7 @@
 package org.dci.aimealplanner.models.recipes;
 
 import jakarta.validation.constraints.*;
-import org.dci.aimealplanner.entities.ImageMetaData;
+import org.dci.aimealplanner.entities.recipes.ImageMetaData;
 import org.dci.aimealplanner.entities.recipes.MealCategory;
 import org.dci.aimealplanner.entities.recipes.Recipe;
 import org.dci.aimealplanner.entities.recipes.RecipeIngredient;

@@ -1,14 +1,12 @@
-package org.dci.aimealplanner.entities;
+package org.dci.aimealplanner.entities.recipes;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.OneToOne;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.dci.aimealplanner.entities.recipes.Recipe;
 
 @Entity
 @AllArgsConstructor

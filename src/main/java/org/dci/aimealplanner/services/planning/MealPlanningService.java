@@ -5,6 +5,7 @@ import org.dci.aimealplanner.entities.planning.MealEntry;
 import org.dci.aimealplanner.entities.planning.MealPlan;
 import org.dci.aimealplanner.entities.recipes.Recipe;
 import org.dci.aimealplanner.entities.users.User;
+import org.dci.aimealplanner.exceptions.MealEntryNotFoundException;
 import org.dci.aimealplanner.models.planning.AddMealEntryDTO;
 import org.dci.aimealplanner.models.planning.CreateMealPlanDTO;
 import org.dci.aimealplanner.repositories.planning.MealEntryRepository;
@@ -54,7 +55,7 @@ public class MealPlanningService {
     @Transactional
     public MealEntry addEntry(Long userId, AddMealEntryDTO dto) {
         MealPlan plan = mealPlanRepository.findById(dto.mealPlanId())
-                .orElseThrow(() -> new IllegalArgumentException("Meal plan not found"));
+                .orElseThrow(() -> new MealEntryNotFoundException("Meal plan not found"));
 
         if (!plan.getUser().getId().equals(userId)) {
             throw new IllegalArgumentException("Invalid user id");
@@ -114,7 +115,7 @@ public class MealPlanningService {
     @Transactional(readOnly = true)
     public MealPlan getPlanForUser(Long planId, Long userId) {
         MealPlan plan = mealPlanRepository.findById(planId)
-                .orElseThrow(() -> new IllegalArgumentException("Meal plan not found"));
+                .orElseThrow(() -> new MealEntryNotFoundException("Meal plan not found"));
         if (!plan.getUser().getId().equals(userId)) {
             throw new IllegalArgumentException("You do not have access to this plan");
         }
@@ -148,7 +149,7 @@ public class MealPlanningService {
 
     public MealPlan findById(Long id) {
         return mealPlanRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Meal plan not found"));
+                .orElseThrow(() -> new MealEntryNotFoundException("Meal plan not found"));
     }
 
     public List<MealEntry> findEntriesByMealPlan(Long mealPlanId) {

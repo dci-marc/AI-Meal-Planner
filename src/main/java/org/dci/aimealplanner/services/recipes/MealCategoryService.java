@@ -2,6 +2,7 @@ package org.dci.aimealplanner.services.recipes;
 
 import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.entities.recipes.MealCategory;
+import org.dci.aimealplanner.exceptions.MealCategoryNotFoundException;
 import org.dci.aimealplanner.repositories.recipes.MealCategoryRepository;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +23,6 @@ public class MealCategoryService {
 
     public MealCategory findByName(String catName) {
         return mealCategoryRepository.findByNameIgnoreCaseLike(catName)
-                .orElseThrow(() -> new RuntimeException("Can't find meal category with name " + catName));
+                .orElseThrow(() -> new MealCategoryNotFoundException("Can't find meal category with name " + catName));
     }
 }

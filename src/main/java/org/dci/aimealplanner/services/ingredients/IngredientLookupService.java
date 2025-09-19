@@ -3,6 +3,8 @@ package org.dci.aimealplanner.services.ingredients;
 import lombok.RequiredArgsConstructor;
 import org.dci.aimealplanner.entities.ingredients.Ingredient;
 import org.dci.aimealplanner.entities.ingredients.Unit;
+import org.dci.aimealplanner.exceptions.IngredientNotFoundException;
+import org.dci.aimealplanner.exceptions.UnitNotFoundException;
 import org.dci.aimealplanner.repositories.ingredients.IngredientRepository;
 import org.dci.aimealplanner.repositories.ingredients.UnitRepository;
 import org.dci.aimealplanner.services.utils.TextNormalize;
@@ -20,7 +22,7 @@ public class IngredientLookupService {
 
     public Ingredient findIngredientByName(String rawName) {
         if (rawName == null || rawName.isBlank()) {
-            throw new RuntimeException("Ingredient not found: <blank>");
+            throw new IngredientNotFoundException("Ingredient not found: <blank>");
         }
 
         String q = TextNormalize.normName(rawName);
@@ -47,13 +49,13 @@ public class IngredientLookupService {
         List<Ingredient> contains = ingredientRepository.findTop10ByNameContainingIgnoreCaseOrderByNameAsc(q);
         if (!contains.isEmpty()) return contains.get(0);
 
-        throw new RuntimeException("Ingredient not found: " + rawName);
+        throw new IngredientNotFoundException("Ingredient not found: " + rawName);
     }
 
     public Unit findUnitByCode(String rawCode) {
         String normalized = TextNormalize.normUnitCode(rawCode);
         return unitRepository.findByCodeIgnoreCase(normalized)
-                .orElseThrow(() -> new RuntimeException("Unit not found: " + rawCode));
+                .orElseThrow(() -> new UnitNotFoundException("Unit not found: " + rawCode));
     }
 
     private String singularize(String s) {
