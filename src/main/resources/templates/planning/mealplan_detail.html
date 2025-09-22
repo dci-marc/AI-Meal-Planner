@@ -91,7 +91,7 @@
                 <div class="col-12 col-lg-2">
                     <label class="form-label">Meal slot</label>
                     <select class="form-select" th:field="*{mealSlot}">
-                        <option th:each="s : ${mealSlots}" th:value="${s}" th:text="${s}">BREAKFAST</option>
+                        <option th:each="s : ${mealSlots}" th:value="${s}" th:text="${#strings.toLowerCase(s)}">breakfast</option>
                     </select>
                 </div>
 
@@ -144,7 +144,7 @@
             <div class="col-12" th:each="meal : ${entry.value}">
                 <div class="entry-card d-flex justify-content-between align-items-center">
                     <div class="text-truncate">
-                        <span class="badge text-bg-light slot-badge" th:text="${meal.mealSlot}">LUNCH</span>
+                        <span class="badge text-bg-light slot-badge" th:text="${#strings.toLowerCase(meal.mealSlot)}">lunch</span>
                         <a class="ms-2 text-decoration-none"
                            th:href="@{|/recipes/${meal.recipe.id}|}"
                            th:text="${meal.recipe.title}">Recipe title</a>
