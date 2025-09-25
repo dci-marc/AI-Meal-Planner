@@ -36,10 +36,41 @@
         .selected-pill button {
             border:0; background:transparent; line-height:1; font-size:1rem; color:#0d6efd;
         }
+
+        .loading-overlay {
+            position: fixed; inset: 0; z-index: 2000;
+            display: none; align-items: center; justify-content: center;
+            background: rgba(255,255,255,.85);
+            backdrop-filter: blur(2px);
+        }
+        .loading-card {
+            width: min(520px, 92vw);
+            background: #fff; border: 1px solid rgba(0,0,0,.08);
+            border-radius: 1rem; padding: 1.25rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,.08);
+        }
+        .loading-card h6 { margin: 0 0 .5rem; font-weight: 700; }
+        .loading-sub { color:#6c757d; font-size:.95rem; }
     </style>
 </head>
 <body class="bg-light">
 <div th:replace="~{fragments/navigation_tab :: navigation}"></div>
+
+<div id="aiLoading" class="loading-overlay" aria-live="polite" aria-busy="true">
+    <div class="loading-card">
+        <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="spinner-border" role="status" aria-hidden="true"></div>
+            <div>
+                <h6>Cooking up your plan with AI…</h6>
+                <div class="loading-sub">We’re generating meals and balancing nutrition. This may take a moment.</div>
+            </div>
+        </div>
+        <div class="progress" role="progressbar" aria-label="AI progress" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar progress-bar-striped progress-bar-animated" style="width:100%"></div>
+        </div>
+        <div class="text-muted small mt-2">Tip: you can keep this tab open while we finish.</div>
+    </div>
+</div>
 
 <header class="hero">
     <div class="container">
@@ -127,11 +158,10 @@
             This plan has no entries yet. Use <strong>Add to this plan</strong> above
             or let AI generate a starter plan.
         </div>
-        <form th:action="@{|/meal-plans/${mealPlan.id}/ai-populate|}" method="post" class="ms-3">
-            <button class="btn btn-sm btn-primary">Populate with AI</button>
+        <form th:action="@{|/meal-plans/${mealPlan.id}/ai-populate|}" method="post" class="ms-3" id="aiPopulateForm">
+            <button class="btn btn-sm btn-primary" id="aiPopulateBtn">Populate with AI</button>
         </form>
     </div>
-
 
     <div th:each="entry : ${entriesByDate.entrySet()}">
         <h5 class="mt-4"
@@ -246,6 +276,20 @@
         });
         document.addEventListener('click', (e) => {
             if (!list.contains(e.target) && e.target !== input) showList(false);
+        });
+
+        const aiForm = document.querySelector('form[action*="/ai-populate"]');
+        const aiBtn  = document.getElementById('aiPopulateBtn');
+        const overlay = document.getElementById('aiLoading');
+
+        aiForm?.addEventListener('submit', () => {
+            aiBtn?.setAttribute('disabled', 'disabled');
+            overlay.style.display = 'flex';
+        });
+
+        window.addEventListener('pageshow', () => {
+            overlay.style.display = 'none';
+            aiBtn?.removeAttribute('disabled');
         });
     })();
 </script>
