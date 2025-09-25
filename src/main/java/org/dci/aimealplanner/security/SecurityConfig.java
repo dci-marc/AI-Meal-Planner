@@ -31,6 +31,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorizeRequests -> authorizeRequests
                         .requestMatchers("/auth/**", "/index", "/index/", "/css/**", "/images/**", "/favicon.ico").permitAll()
                         .requestMatchers(HttpMethod.GET, "/recipes", "/recipes/").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .formLogin(formLogin -> formLogin
