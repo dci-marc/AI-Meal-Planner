@@ -15,6 +15,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -54,18 +55,35 @@ public class IngredientAiService {
                 ? ai.getCategory().trim() : "Other";
         var category = ingredientCategoryService.findOrCreateByName(categoryName);
 
+        Function<String, String> norm = s -> {
+            if (s == null) return null;
+            String t = s.trim().toLowerCase();
+            // mass
+            if (t.equals("gram") || t.equals("grams")) return "g";
+            if (t.equals("milliliter") || t.equals("milliliters") || t.equals("mls")) return "ml";
+            if (t.equals("gs")) return "g";
+            if (t.equals("ml.")) return "ml";
+            return t;
+        };
+
         var unitCodes = new LinkedHashSet<String>();
         if (ai.getUnits() != null) {
             ai.getUnits().forEach(u -> {
                 if (u != null && StringUtils.hasText(u.getCode())) {
-                    unitCodes.add(u.getCode().trim().toLowerCase());
+                    String code = norm.apply(u.getCode());
+                    if (StringUtils.hasText(code)) unitCodes.add(code);
                 }
             });
         }
         if (ai.getRatios() != null) {
             ai.getRatios().forEach(r -> {
                 if (r != null && StringUtils.hasText(r.getFromUnitCode())) {
-                    unitCodes.add(r.getFromUnitCode().trim().toLowerCase());
+                    String code = norm.apply(r.getFromUnitCode());
+                    if (StringUtils.hasText(code)) unitCodes.add(code);
+                }
+                if (r != null && StringUtils.hasText(r.getToUnitCode())) {
+                    String code = norm.apply(r.getToUnitCode());
+                    if (StringUtils.hasText(code)) unitCodes.add(code);
                 }
             });
         }
@@ -93,13 +111,16 @@ public class IngredientAiService {
         if (ai.getRatios() != null) {
             for (var r : ai.getRatios()) {
                 if (r == null) continue;
-                String from = r.getFromUnitCode();
-                String to   = r.getToUnitCode();
-                Double f    = r.getFactor();
-                if (!StringUtils.hasText(from) || f == null) continue;
-                if (StringUtils.hasText(to) && !"g".equalsIgnoreCase(to)) continue;
 
-                Unit fromUnit = unitsByCode.get(from.trim().toLowerCase());
+                String from = norm.apply(r.getFromUnitCode());
+                String to   = norm.apply(r.getToUnitCode());
+                Double f    = r.getFactor();
+
+                if (!StringUtils.hasText(from) || f == null) continue;
+
+                if (StringUtils.hasText(to) && !"g".equals(to)) continue;
+
+                Unit fromUnit = unitsByCode.get(from);
                 if (fromUnit == null) continue;
 
                 var row = new IngredientUnitRatio();

@@ -19,12 +19,10 @@
 <main class="container wrap py-4">
   <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
 
-    <!-- Left: Back + Title -->
     <div class="d-flex align-items-center gap-2">
       <h1 class="h4 m-0" th:text="${title}">Recipes</h1>
     </div>
 
-    <!-- Right: Actions -->
     <div class="d-flex align-items-center gap-2">
       <a href="/dashboard/recipes" class="btn btn-outline-secondary btn-sm">Back to Recipe Management</a>
       <a th:if="${scope == 'my'}" href="/dashboard/recipes/new" class="btn btn-primary">
@@ -67,7 +65,7 @@
   <div th:if="${page.content.size() == 0}" class="text-center text-muted py-5">
     <p th:if="${scope == 'my'}" class="mb-2">You haven’t created any recipes yet.</p>
     <p th:if="${scope == 'ai'}" class="mb-2">No AI recipes linked to your account yet.</p>
-    <a th:if="${scope == 'my'}" href="/dashboard/recipes/new" class="btn btn-outline-primary">Create your first recipe</a>
+    <a th:if="${scope == 'my'}" href="/recipes/new" class="btn btn-outline-primary">Create your first recipe</a>
   </div>
 
   <nav th:if="${page.totalPages > 1}" aria-label="Recipe pagination">
