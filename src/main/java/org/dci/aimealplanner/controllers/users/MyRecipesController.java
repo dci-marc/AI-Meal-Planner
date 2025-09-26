@@ -75,7 +75,7 @@ public class MyRecipesController {
         model.addAttribute("form", RecipeForm.blank());
         model.addAttribute("difficulties", Difficulty.values());
         model.addAttribute("mode", "create");
-        return "dashboard/recipes/user_recipe_form";
+        return "recipes/recipe_form";
     }
 
     @PostMapping

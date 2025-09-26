@@ -107,8 +107,7 @@
             <div id="catList" class="list-group">
               <label class="list-group-item" th:each="category : ${categories}" th:attr="data-id=${category.id}">
                 <input class="form-check-input me-2" type="checkbox"
-                       th:attr="data-id=${category.id}"
-                >
+                       th:attr="data-id=${category.id}">
                 <span th:text="${category.name}">Category</span>
               </label>
             </div>
@@ -199,9 +198,11 @@
 
   function unitsUrlFor(ingId){ return API_UNITS_BASE.replace('/0/','/'+ingId+'/'); }
 
+  // IMPORTANT: Do NOT include location.hash in return URL, so createdIngredient
+  // comes back in location.search (fixes intermittent unit auto-fill bug).
   function aiUrlFor(name){
     try { sessionStorage.setItem('recipe:allowRestoreOnce', '1'); } catch(_){}
-    const ret = window.location.pathname + window.location.search + window.location.hash;
+    const ret = window.location.pathname + window.location.search; // (no hash)
     return `${NEW_ING_AI}?name=${encodeURIComponent(name)}&return=${encodeURIComponent(ret)}`;
   }
 
@@ -417,11 +418,9 @@
   document.addEventListener('DOMContentLoaded', ()=>{
     syncCheckboxesFromHidden();
 
-
     document.getElementById('catList').addEventListener('change', (e)=>{
       if(e.target.matches('input[type="checkbox"]')) syncHiddenFromCheckboxes();
     });
-
 
     const filter = document.getElementById('catFilter');
     filter.addEventListener('input', ()=>{
@@ -466,11 +465,11 @@
 
     (async function restoreDraft(){
       const url = new URL(location.href);
-      const createdId = url.searchParams.get('createdIngredient');
+      const createdIdInSearch = url.searchParams.get('createdIngredient');
       const allowOnce = sessionStorage.getItem('recipe:allowRestoreOnce') === '1';
       const draft = readDraft();
       const freshEnough = draft ? ((Date.now() - draft.__ts) <= 5*60000) : false;
-      const shouldRestore = !!draft && (createdId || allowOnce || freshEnough);
+      const shouldRestore = !!draft && (createdIdInSearch || allowOnce || freshEnough);
       if(!shouldRestore) return;
 
       const form = document.querySelector('form.card');
@@ -518,9 +517,25 @@
       try{ sessionStorage.removeItem('recipe:allowRestoreOnce'); }catch(_){}
     })();
 
+    // Apply the newly-created ingredient after returning from "Add via AI"
     (async function applyCreated(){
-      const params = new URLSearchParams(location.search);
-      const createdId = params.get('createdIngredient');
+      // Read from search first, then fall back to hash (robust if a fragment sneaks in).
+      const searchParams = new URLSearchParams(location.search);
+      let createdId = searchParams.get('createdIngredient');
+
+      if (!createdId && location.hash) {
+        const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
+        createdId = hashParams.get('createdIngredient');
+        if (createdId) {
+          // normalize URL so future code sees it in search
+          const url = new URL(location.href);
+          url.searchParams.set('createdIngredient', createdId);
+          // optional: clear from hash
+          // url.hash = '';
+          history.replaceState(null, '', url.toString());
+        }
+      }
+
       if(!createdId) return;
 
       let target = null;
@@ -569,11 +584,9 @@
       const servEl  = form.querySelector('[name="servings"]'); if (servEl) servEl.value = '';
       const instrEl = form.querySelector('[name="instructions"]'); if (instrEl) instrEl.value = '';
 
-
       if (hidden) Array.from(hidden.options).forEach(o=>o.selected=false);
       document.querySelectorAll('#catList input[type="checkbox"]').forEach(cb=>cb.checked=false);
       updateCatLabel();
-
 
       const tbody = document.getElementById('ingredient-rows');
       if (tbody) {
@@ -647,7 +660,6 @@
     });
   })();
 </script>
-
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

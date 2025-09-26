@@ -30,15 +30,18 @@
         <div>
             The ingredient "<span class="fw-semibold" th:text="${name}"></span>" already exists
             <span th:if="${existingName}">
-        as "<span class="fw-semibold" th:text="${existingName}"></span>"
-      </span>.
+                as "<span class="fw-semibold" th:text="${existingName}"></span>"
+            </span>.
         </div>
         <div class="mt-2 d-flex gap-2">
             <a class="btn btn-primary btn-sm" th:href="${returnUrl}">Back to recipe</a>
-            <a class="btn btn-outline-secondary btn-sm"
-               th:if="${existingId}" th:href="@{/ingredients/{id}(id=${existingId})}">
-                View ingredient
-            </a>
+
+            <form th:if="${existingId}" th:action="${returnUrl}" method="get" class="d-inline">
+                <input type="hidden" name="createdIngredient" th:value="${existingId}" />
+                <button type="submit" class="btn btn-outline-secondary btn-sm">
+                    Use ingredient
+                </button>
+            </form>
         </div>
     </div>
 
@@ -61,7 +64,7 @@
                              th:text="${(n != null and n.carbs   != null) ? 'carbs: '   + n.carbs   + ' g' : 'carbs: —'}"></div>
                         <div class="col-auto me-3"
                              th:text="${(n != null and n.fat     != null) ? 'fat: '     + n.fat     + ' g' : 'fat: —'}"></div>
-                        <div class="col-auto me-3"
+                        <div class="col-auto"
                              th:text="${(n != null and n.fiber   != null) ? 'fiber: '   + n.fiber   + ' g' : 'fiber: —'}"></div>
                         <div class="col-auto"
                              th:text="${(n != null and n.sugar   != null) ? 'sugar: '   + n.sugar   + ' g' : 'sugar: —'}"></div>
