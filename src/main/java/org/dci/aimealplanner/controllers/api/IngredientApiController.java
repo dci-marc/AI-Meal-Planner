@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/ingredients")
@@ -49,5 +50,14 @@ public class IngredientApiController {
                                 ? r.getUnit().getDisplayName()
                                 : r.getUnit().getCode()))
                 .toList();
+    }
+
+    @GetMapping("/{id}")
+    public Map<String, Object> getById(@PathVariable Long id) {
+        var ing = ingredientService.findById(id); // will throw if not found
+        return Map.of(
+                "id", ing.getId(),
+                "name", ing.getName()
+        );
     }
 }

@@ -89,7 +89,7 @@
             </div>
 
             <div class="btn-toolbar gap-2 ms-lg-auto flex-lg-nowrap">
-                <a th:href="${redirectUrl}" class="btn btn-outline-secondary btn-sm">Back to List</a>
+                <a th:href="${redirectUrl}" class="btn btn-outline-secondary btn-sm">Back</a>
                 <a th:if="${currentUserId == author.id()}" th:href="@{/recipes/edit/{id}(id=${recipe.id})}" class="btn btn-primary btn-sm">Edit</a>
                 <a th:if="${currentUserId == author.id()}" th:href="@{/recipes/delete/{id}(id=${recipe.id})}" class="btn btn-danger btn-sm">Delete</a>
                 <a th:href="@{/recipes/generate-pdf/{id}(id=${recipe.id})}" class="btn btn-outline-success btn-sm">Download PDF</a>

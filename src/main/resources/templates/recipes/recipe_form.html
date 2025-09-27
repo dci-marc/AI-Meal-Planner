@@ -87,6 +87,7 @@
       <div class="col-md-4">
         <label class="form-label">Meal Categories</label>
 
+        <!-- hidden original multi-select (UNCHANGED) -->
         <select id="mealCategoriesHidden" th:field="*{mealCategories}" class="d-none" multiple>
           <option th:each="category : ${categories}"
                   th:value="${category.id}"
@@ -96,6 +97,7 @@
           </option>
         </select>
 
+        <!-- custom dropdown UI (UNCHANGED) -->
         <div class="dropdown w-100 cat-dropdown">
           <button class="btn btn-outline-secondary w-100 d-flex justify-content-between align-items-center"
                   type="button" data-bs-toggle="dropdown" aria-expanded="false" id="catDropdownBtn">
@@ -198,11 +200,10 @@
 
   function unitsUrlFor(ingId){ return API_UNITS_BASE.replace('/0/','/'+ingId+'/'); }
 
-  // IMPORTANT: Do NOT include location.hash in return URL, so createdIngredient
-  // comes back in location.search (fixes intermittent unit auto-fill bug).
+  // IMPORTANT: Do NOT include location.hash in return URL
   function aiUrlFor(name){
     try { sessionStorage.setItem('recipe:allowRestoreOnce', '1'); } catch(_){}
-    const ret = window.location.pathname + window.location.search; // (no hash)
+    const ret = window.location.pathname + window.location.search;
     return `${NEW_ING_AI}?name=${encodeURIComponent(name)}&return=${encodeURIComponent(ret)}`;
   }
 
@@ -232,14 +233,50 @@
   const panel = document.getElementById('ta-results-global');
   let activeInput=null, activeHidden=null, activeUnitSelect=null, debounceTimer=null, abortCtrl=null;
 
+  // --- stable per-row key ---
+  function ensureRowKey(tr){
+    if(!tr) return null;
+    if(!tr.dataset.rowKey){
+      tr.dataset.rowKey = 'rk_' + Math.random().toString(36).slice(2,10);
+    }
+    return tr.dataset.rowKey;
+  }
+
+  // === UPDATED: smart-positioned dropdown (opens above if below would overflow) ===
   function openPanelFor(input){
     const rect = input.getBoundingClientRect();
-    panel.style.left = rect.left + 'px';
-    panel.style.top  = (rect.bottom + window.scrollY) + 'px';
-    panel.style.width= rect.width + 'px';
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    const left = Math.min(rect.left, Math.max(0, vw - rect.width - 8));
+    panel.style.left  = (left + window.scrollX) + 'px';
+    panel.style.width = rect.width + 'px';
+
+    const spaceBelow = vh - rect.bottom;
+    const spaceAbove = rect.top;
+    const DESIRED_MAX = 240;
+    const GAP = 8;
+
+    function px(n){ return Math.max(120, Math.min(DESIRED_MAX, Math.floor(n - GAP))) + 'px'; }
+
+    if (spaceBelow >= 160 || spaceBelow >= spaceAbove) {
+      panel.style.maxHeight = px(spaceBelow);
+      panel.style.top = (rect.bottom + window.scrollY) + 'px';
+    } else {
+      panel.style.maxHeight = px(spaceAbove);
+      const h = parseInt(panel.style.maxHeight, 10) || DESIRED_MAX;
+      panel.style.top = (rect.top + window.scrollY - h - GAP) + 'px';
+    }
+
     panel.style.display = 'block';
   }
   function closePanel(){ panel.style.display='none'; panel.innerHTML=''; }
+
+  function rowIndexOf(el){
+    const rows = Array.from(document.querySelectorAll('#ingredient-rows tr'));
+    const tr = el.closest('tr');
+    return Math.max(0, rows.indexOf(tr));
+  }
 
   async function searchIngredients(q){
     if(q.length < 1){ closePanel(); return; }
@@ -265,7 +302,13 @@
         add.dataset.aiAdd='true';
         add.addEventListener('pointerdown', (e)=>{
           e.preventDefault();
-          try{ sessionStorage.setItem('recipe:lastIngredientQuery', q); }catch(_){}
+          try{
+            sessionStorage.setItem('recipe:lastIngredientQuery', q);
+            if (activeInput) {
+              sessionStorage.setItem('recipe:lastRowIndex', String(rowIndexOf(activeInput)));
+              const tr = activeInput.closest('tr'); if(tr){ sessionStorage.setItem('recipe:lastRowKey', ensureRowKey(tr)); }
+            }
+          }catch(_){}
           window.location.href = aiUrlFor(q);
         });
         panel.appendChild(add);
@@ -280,9 +323,16 @@
             if(!activeInput || !activeHidden) return;
             activeHidden.value = it.id;
             activeInput.value  = it.name;
-            closePanel();
             if(activeUnitSelect) await loadUnits(activeUnitSelect, it.id, null);
-            activeInput.focus();
+            closePanel();
+
+            const row = activeInput.closest('tr');
+            const amount = row?.querySelector('input[name$=".amount"]');
+            if (amount) {
+              amount.focus();
+              amount.select();
+              amount.scrollIntoView({ block: 'center', inline: 'nearest' });
+            }
           });
           panel.appendChild(btn);
         });
@@ -293,7 +343,13 @@
         footer.textContent = `Can’t find it? Add "${q}" via AI`;
         footer.addEventListener('pointerdown', (e)=>{
           e.preventDefault();
-          try{ sessionStorage.setItem('recipe:lastIngredientQuery', q); }catch(_){}
+          try{
+            sessionStorage.setItem('recipe:lastIngredientQuery', q);
+            if (activeInput) {
+              sessionStorage.setItem('recipe:lastRowIndex', String(rowIndexOf(activeInput)));
+              const tr = activeInput.closest('tr'); if(tr){ sessionStorage.setItem('recipe:lastRowKey', ensureRowKey(tr)); }
+            }
+          }catch(_){}
           window.location.href = aiUrlFor(q);
         });
         panel.appendChild(footer);
@@ -306,6 +362,8 @@
   }
 
   function wireRow(tr){
+    ensureRowKey(tr); // make sure every row has a stable key at wiring time
+
     const input    = tr.querySelector('.ingredient-search');
     const hiddenId = tr.querySelector('input[type="hidden"][name$=".ingredient.id"]');
     const unitSel  = tr.querySelector('.unit-select');
@@ -316,6 +374,8 @@
 
     input.addEventListener('focus', ()=>{
       activeInput=input; activeHidden=hiddenId; activeUnitSelect=unitSel;
+      // remember exact row by key
+      try { sessionStorage.setItem('recipe:lastRowKey', ensureRowKey(tr)); } catch(_){}
       if(input.value.trim().length >= 1){
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(()=>searchIngredients(input.value.trim()), 120);
@@ -351,6 +411,7 @@
         <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeRow(this)">✕</button>
       </td>
     `;
+    ensureRowKey(tr); // assign stable key to new row
     document.getElementById('ingredient-rows').appendChild(tr);
     wireRow(tr);
   }
@@ -359,7 +420,7 @@
     const tr = btn.closest('tr'); if(tr) tr.remove();
     document.querySelectorAll('#ingredient-rows tr').forEach((row, idx)=>{
       row.querySelectorAll('select, input').forEach(el=>{
-        el.name = el.name.replace(/ingredients\[\d+]/, 'ingredients['+idx+']');
+        if (el.name) el.name = el.name.replace(/ingredients\[\d+]/, 'ingredients['+idx+']');
       });
     });
     closePanel();
@@ -374,10 +435,18 @@
       if(panel.style.display === 'block'){
         const aiBtn = panel.querySelector('[data-ai-add="true"]');
         if(aiBtn){
-          try{ sessionStorage.setItem('recipe:lastIngredientQuery', document.activeElement.value.trim()); }catch(_){}
+          try{
+            sessionStorage.setItem('recipe:lastIngredientQuery', document.activeElement.value.trim());
+            sessionStorage.setItem('recipe:lastRowIndex', String(rowIndexOf(document.activeElement)));
+            const tr = document.activeElement.closest('tr'); if(tr){ sessionStorage.setItem('recipe:lastRowKey', ensureRowKey(tr)); }
+          }catch(_){}
           aiBtn.click();
           return;
         }
+      } else {
+        const row = document.activeElement.closest('tr');
+        const amount = row?.querySelector('input[name$=".amount"]');
+        if (amount) { amount.focus(); amount.select(); amount.scrollIntoView({ block: 'center', inline: 'nearest' }); }
       }
     }
   });
@@ -415,27 +484,11 @@
     updateCatLabel();
   }
 
-  document.addEventListener('DOMContentLoaded', ()=>{
-    syncCheckboxesFromHidden();
-
-    document.getElementById('catList').addEventListener('change', (e)=>{
-      if(e.target.matches('input[type="checkbox"]')) syncHiddenFromCheckboxes();
-    });
-
-    const filter = document.getElementById('catFilter');
-    filter.addEventListener('input', ()=>{
-      const q = filter.value.trim().toLowerCase();
-      document.querySelectorAll('#catList .list-group-item').forEach(li=>{
-        const txt = li.textContent.trim().toLowerCase();
-        li.style.display = txt.includes(q) ? '' : 'none';
-      });
-    });
-  });
-
-
+  // ------- Draft restore (awaitable) -------
   const DRAFT_KEY = 'recipe:draft:' + location.pathname;
   const DRAFT_TTL_MIN = 45;
   let __suppressNextSave = false;
+  let __isSubmitting = false;
 
   function readDraft(){
     const raw = sessionStorage.getItem(DRAFT_KEY);
@@ -459,67 +512,69 @@
     try{ sessionStorage.removeItem(DRAFT_KEY); }catch(_){}
   }
 
-  document.addEventListener('DOMContentLoaded', async ()=>{
+  const draftRestorePromise = (async function restoreDraft(){
+    const url = new URL(location.href);
+    const createdIdInSearch = url.searchParams.get('createdIngredient');
+    const allowOnce = sessionStorage.getItem('recipe:allowRestoreOnce') === '1';
+    const draft = readDraft();
+
+    const shouldRestore = !!draft && (createdIdInSearch || allowOnce);
+    if(!shouldRestore) return;
+
+    const form = document.querySelector('form.card');
+    if(!form) return;
+
+    const setVal = (sel, v)=>{ const el=form.querySelector(sel); if(el!=null && v!=null){ el.value=v; } };
+    setVal('[name="title"]', draft.title);
+    const diffEl = form.querySelector('#difficulty'); if(diffEl && draft.difficulty!=null) diffEl.value = draft.difficulty;
+    setVal('[name="preparationTimeMinutes"]', draft.prep);
+    setVal('[name="servings"]', draft.servings);
+
+    const hidden = document.getElementById('mealCategoriesHidden');
+    if (hidden && Array.isArray(draft.categories)) {
+      const set = new Set(draft.categories.map(String));
+      Array.from(hidden.options).forEach(opt => opt.selected = set.has(String(opt.value)));
+      syncCheckboxesFromHidden();
+    }
+
+    const instrEl = form.querySelector('[name="instructions"]'); if(instrEl && draft.instructions!=null) instrEl.value = draft.instructions;
+
+    const want = Array.isArray(draft.ingredients) ? draft.ingredients.length : 0;
+    while (document.querySelectorAll('#ingredient-rows tr').length < want) addRow();
+
+    const rows = Array.from(document.querySelectorAll('#ingredient-rows tr'));
+    for (let i=0; i<want; i++){
+      const tr = rows[i], rec = draft.ingredients[i] || {};
+      ensureRowKey(tr);
+      const nameInput = tr.querySelector('.ingredient-search');
+      const idHidden  = tr.querySelector('input[type="hidden"][name$=".ingredient.id"]');
+      const amount    = tr.querySelector('input[name$=".amount"]');
+      const unitSel   = tr.querySelector('select[name$=".unit.id"]');
+
+      if (nameInput && rec.text!=null) nameInput.value = rec.text;
+      if (idHidden  && rec.id!=null)   idHidden.value  = rec.id;
+      if (amount    && rec.amount!=null) amount.value = rec.amount;
+      if (unitSel) {
+        if (rec.id) {
+          try { await loadUnits(unitSel, rec.id, rec.unitId || ''); }
+          catch(e){ console.warn('restore units failed:', e); }
+        } else if (rec.unitId!=null) {
+          unitSel.value = rec.unitId;
+        }
+      }
+    }
+
+    try{ sessionStorage.removeItem('recipe:allowRestoreOnce'); }catch(_){}
+  })();
+
+  document.addEventListener('DOMContentLoaded', ()=>{
     document.querySelectorAll('#ingredient-rows tr').forEach(wireRow);
     if(document.querySelectorAll('#ingredient-rows tr').length === 0) addRow();
 
-    (async function restoreDraft(){
-      const url = new URL(location.href);
-      const createdIdInSearch = url.searchParams.get('createdIngredient');
-      const allowOnce = sessionStorage.getItem('recipe:allowRestoreOnce') === '1';
-      const draft = readDraft();
-      const freshEnough = draft ? ((Date.now() - draft.__ts) <= 5*60000) : false;
-      const shouldRestore = !!draft && (createdIdInSearch || allowOnce || freshEnough);
-      if(!shouldRestore) return;
-
-      const form = document.querySelector('form.card');
-      if(!form) return;
-
-      const setVal = (sel, v)=>{ const el=form.querySelector(sel); if(el!=null && v!=null){ el.value=v; } };
-      setVal('[name="title"]', draft.title);
-      const diffEl = form.querySelector('#difficulty'); if(diffEl && draft.difficulty!=null) diffEl.value = draft.difficulty;
-      setVal('[name="preparationTimeMinutes"]', draft.prep);
-      setVal('[name="servings"]', draft.servings);
-
-      const hidden = document.getElementById('mealCategoriesHidden');
-      if (hidden && Array.isArray(draft.categories)) {
-        const set = new Set(draft.categories.map(String));
-        Array.from(hidden.options).forEach(opt => opt.selected = set.has(String(opt.value)));
-        syncCheckboxesFromHidden();
-      }
-
-      const instrEl = form.querySelector('[name="instructions"]'); if(instrEl && draft.instructions!=null) instrEl.value = draft.instructions;
-
-      const want = Array.isArray(draft.ingredients) ? draft.ingredients.length : 0;
-      while (document.querySelectorAll('#ingredient-rows tr').length < want) addRow();
-
-      const rows = Array.from(document.querySelectorAll('#ingredient-rows tr'));
-      for (let i=0; i<want; i++){
-        const tr = rows[i], rec = draft.ingredients[i] || {};
-        const nameInput = tr.querySelector('.ingredient-search');
-        const idHidden  = tr.querySelector('input[type="hidden"][name$=".ingredient.id"]');
-        const amount    = tr.querySelector('input[name$=".amount"]');
-        const unitSel   = tr.querySelector('select[name$=".unit.id"]');
-
-        if (nameInput && rec.text!=null) nameInput.value = rec.text;
-        if (idHidden  && rec.id!=null)   idHidden.value  = rec.id;
-        if (amount    && rec.amount!=null) amount.value = rec.amount;
-        if (unitSel) {
-          if (rec.id) {
-            try { await loadUnits(unitSel, rec.id, rec.unitId || ''); }
-            catch(e){ console.warn('restore units failed:', e); }
-          } else if (rec.unitId!=null) {
-            unitSel.value = rec.unitId;
-          }
-        }
-      }
-
-      try{ sessionStorage.removeItem('recipe:allowRestoreOnce'); }catch(_){}
-    })();
-
-    // Apply the newly-created ingredient after returning from "Add via AI"
+    // ------- Apply created ingredient (no silent new row) -------
     (async function applyCreated(){
-      // Read from search first, then fall back to hash (robust if a fragment sneaks in).
+      try { await draftRestorePromise; } catch(_) {}
+
       const searchParams = new URLSearchParams(location.search);
       let createdId = searchParams.get('createdIngredient');
 
@@ -527,51 +582,236 @@
         const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
         createdId = hashParams.get('createdIngredient');
         if (createdId) {
-          // normalize URL so future code sees it in search
           const url = new URL(location.href);
           url.searchParams.set('createdIngredient', createdId);
-          // optional: clear from hash
-          // url.hash = '';
           history.replaceState(null, '', url.toString());
         }
       }
-
       if(!createdId) return;
 
+      const rows = Array.from(document.querySelectorAll('#ingredient-rows tr'));
+
+      // (A) Prefer stable row key
       let target = null;
-      const lastQuery = sessionStorage.getItem('recipe:lastIngredientQuery');
-      if (lastQuery) {
-        target = Array.from(document.querySelectorAll('#ingredient-rows tr')).find(tr=>{
-          const v = tr.querySelector('.ingredient-search')?.value || '';
-          return v.trim().toLowerCase() === lastQuery.trim().toLowerCase();
-        });
+      const savedKey = sessionStorage.getItem('recipe:lastRowKey');
+      if (savedKey) {
+        target = rows.find(tr => tr.dataset.rowKey === savedKey) || null;
       }
+
+      // (B) Saved index
       if (!target) {
-        target = Array.from(document.querySelectorAll('#ingredient-rows tr')).find(tr=>{
+        const savedIdx = sessionStorage.getItem('recipe:lastRowIndex');
+        if (savedIdx != null) {
+          const idx = Number(savedIdx);
+          if (Number.isInteger(idx) && idx >= 0 && idx < rows.length) {
+            target = rows[idx];
+          }
+        }
+      }
+
+      // (C) Match by last typed query
+      if (!target) {
+        const lastQuery = (sessionStorage.getItem('recipe:lastIngredientQuery') || '').trim().toLowerCase();
+        if (lastQuery) {
+          target = rows.find(tr=>{
+            const v = tr.querySelector('.ingredient-search')?.value || '';
+            return v.trim().toLowerCase() === lastQuery;
+          }) || null;
+        }
+      }
+
+      // (D) First empty hidden id
+      if (!target) {
+        target = rows.find(tr=>{
           const hid = tr.querySelector('input[type="hidden"][name$=".ingredient.id"]');
           return hid && !hid.value;
         }) || null;
       }
-      if (!target) {
-        addRow();
-        target = document.querySelector('#ingredient-rows tr:last-child');
-      }
 
+      // (E) Fallback: first row
+      if (!target) target = rows[0] || null;
+      if (!target) return;
+
+      ensureRowKey(target);
+
+      const nameInput = target.querySelector('.ingredient-search');
       const hid = target.querySelector('input[type="hidden"][name$=".ingredient.id"]');
       const unitSel = target.querySelector('.unit-select');
+
       if (hid) hid.value = createdId;
+
+      try {
+        const ing = await fetchJson(`${API_ING}/${encodeURIComponent(createdId)}`);
+        if (nameInput && ing && ing.name) nameInput.value = ing.name;
+      } catch(e) {
+        console.warn('fetch created ingredient failed:', e);
+      }
+
       if (unitSel) {
         try { await loadUnits(unitSel, createdId, null); } catch(e){ console.warn('units after create:', e); }
       }
-      try{ sessionStorage.removeItem('recipe:lastIngredientQuery'); }catch(_){}
+
+      const amount = target.querySelector('input[name$=".amount"]');
+      if (amount) {
+        amount.focus();
+        amount.select();
+        amount.scrollIntoView({ block: 'center', inline: 'nearest' });
+      }
+
+      // cleanup breadcrumbs + URL param to avoid reapply
+      try{
+        sessionStorage.removeItem('recipe:lastIngredientQuery');
+        sessionStorage.removeItem('recipe:lastRowIndex');
+        sessionStorage.removeItem('recipe:lastRowKey');
+      }catch(_){}
+      const urlNow = new URL(location.href);
+      if (urlNow.searchParams.has('createdIngredient')) {
+        urlNow.searchParams.delete('createdIngredient');
+        history.replaceState(null, '', urlNow.toString());
+      }
     })();
 
+    // ------- Category UI wiring (UNCHANGED) -------
+    syncCheckboxesFromHidden();
+    document.getElementById('catList').addEventListener('change', (e)=>{
+      if(e.target.matches('input[type="checkbox"]')) syncHiddenFromCheckboxes();
+    });
+    const filter = document.getElementById('catFilter');
+    filter.addEventListener('input', ()=>{
+      const q = filter.value.trim().toLowerCase();
+      document.querySelectorAll('#catList .list-group-item').forEach(li=>{
+        const txt = li.textContent.trim().toLowerCase();
+        li.style.display = txt.includes(q) ? '' : 'none';
+      });
+    });
+  });
 
-    document.getElementById('clearDraftBtn')?.addEventListener('click', ()=>{
+  // ------- Draft store/clear + on-submit dedupe -------
+  (function autosave(){
+    const form = document.querySelector('form.card');
+    if(!form) return;
 
+    function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+
+    function normalizeNumber(val){
+      if (val == null || val === '') return 0;
+      const n = Number(val);
+      return Number.isFinite(n) ? n : 0;
+    }
+    function dedupeIngredientRows(){
+      const tbody = document.getElementById('ingredient-rows');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      const byKey = new Map();
+
+      rows.forEach((tr)=>{
+        const idHidden  = tr.querySelector('input[type="hidden"][name$=".ingredient.id"]');
+        const unitSel   = tr.querySelector('select[name$=".unit.id"]');
+        const amountEl  = tr.querySelector('input[name$=".amount"]');
+
+        const ingId = (idHidden?.value || '').trim();
+        const unitId = (unitSel?.value || '').trim(); // empty means no unit
+        if (!ingId) return;
+
+        const key = `${ingId}|${unitId}`;
+        const amt = normalizeNumber(amountEl?.value);
+
+        if (!byKey.has(key)){
+          byKey.set(key, { tr, amountEl, amount: amt });
+        } else {
+          const first = byKey.get(key);
+          const newAmount = (first.amount ?? 0) + amt;
+          first.amount = newAmount;
+          if (first.amountEl) first.amountEl.value = String(newAmount);
+          tr.setAttribute('data-dup-to-remove','1');
+        }
+      });
+
+      tbody.querySelectorAll('tr[data-dup-to-remove="1"]').forEach(tr=>tr.remove());
+
+      Array.from(tbody.querySelectorAll('tr')).forEach((row, idx)=>{
+        row.querySelectorAll('select, input').forEach(el=>{
+          if (el.name) el.name = el.name.replace(/ingredients\[\d+]/, 'ingredients['+idx+']');
+        });
+      });
+    }
+
+    function snapshot(){
+      if (__suppressNextSave) return;
+      const hidden = document.getElementById('mealCategoriesHidden');
+      const data = {
+        __ts: Date.now(),
+        title: form.querySelector('[name="title"]')?.value ?? '',
+        difficulty: form.querySelector('#difficulty')?.value ?? '',
+        prep: form.querySelector('[name="preparationTimeMinutes"]')?.value ?? '',
+        servings: form.querySelector('[name="servings"]')?.value ?? '',
+        categories: hidden ? Array.from(hidden.selectedOptions).map(o=>o.value) : [],
+        instructions: form.querySelector('[name="instructions"]')?.value ?? '',
+        ingredients: Array.from(document.querySelectorAll('#ingredient-rows tr')).map(tr=>{
+          const nameInput = tr.querySelector('.ingredient-search');
+          const idHidden  = tr.querySelector('input[type="hidden"][name$=".ingredient.id"]');
+          const amount    = tr.querySelector('input[name$=".amount"]');
+          const unitSel   = tr.querySelector('select[name$=".unit.id"]');
+          return {
+            text: nameInput?.value ?? '',
+            id: idHidden?.value ?? '',
+            amount: amount?.value ?? '',
+            unitId: unitSel?.value ?? ''
+          };
+        })
+      };
+      writeDraft(data);
+    }
+
+    const saveNow = debounce(snapshot, 200);
+    form.addEventListener('input', saveNow);
+
+    function handleBeforeUnload(){ if (!__isSubmitting) snapshot(); }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    form.addEventListener('submit', ()=>{
+      dedupeIngredientRows(); // merge duplicates before posting
+
+      __isSubmitting = true;
       clearDraft();
       try{
         sessionStorage.removeItem('recipe:lastIngredientQuery');
+        sessionStorage.removeItem('recipe:lastRowIndex');
+        sessionStorage.removeItem('recipe:lastRowKey');
+        sessionStorage.removeItem('recipe:allowRestoreOnce');
+      }catch(_){}
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    });
+
+    // Clear draft when leaving via links (except AI add flow)
+    document.addEventListener('click', (e)=>{
+      const a = e.target.closest('a[href]');
+      if(!a) return;
+      if(a.href.includes('/ingredients/new-ai')) return;
+      clearDraft();
+      try{
+        sessionStorage.removeItem('recipe:lastIngredientQuery');
+        sessionStorage.removeItem('recipe:lastRowIndex');
+        sessionStorage.removeItem('recipe:lastRowKey');
+        sessionStorage.removeItem('recipe:allowRestoreOnce');
+      }catch(_){}
+    });
+
+    document.addEventListener('click', (e)=>{
+      const a = e.target.closest('a[href]');
+      if(!a) return;
+      if(a.href.includes('/ingredients/new-ai')) return;
+      try{ sessionStorage.removeItem('recipe:allowRestoreOnce'); }catch(_){}
+    });
+  })();
+
+  // ------- Clear draft button -------
+  document.addEventListener('DOMContentLoaded', ()=>{
+    document.getElementById('clearDraftBtn')?.addEventListener('click', ()=>{
+      clearDraft();
+      try{
+        sessionStorage.removeItem('recipe:lastIngredientQuery');
+        sessionStorage.removeItem('recipe:lastRowIndex');
+        sessionStorage.removeItem('recipe:lastRowKey');
         sessionStorage.removeItem('recipe:allowRestoreOnce');
       }catch(_){}
 
@@ -610,55 +850,6 @@
       setTimeout(()=>{ btn.textContent = orig; btn.disabled = false; }, 1200);
     });
   });
-
-  (function autosave(){
-    const form = document.querySelector('form.card');
-    if(!form) return;
-
-    function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
-
-    function snapshot(){
-      if (__suppressNextSave) return;
-      const hidden = document.getElementById('mealCategoriesHidden');
-      const data = {
-        __ts: Date.now(),
-        title: form.querySelector('[name="title"]')?.value ?? '',
-        difficulty: form.querySelector('#difficulty')?.value ?? '',
-        prep: form.querySelector('[name="preparationTimeMinutes"]')?.value ?? '',
-        servings: form.querySelector('[name="servings"]')?.value ?? '',
-        categories: hidden ? Array.from(hidden.selectedOptions).map(o=>o.value) : [],
-        instructions: form.querySelector('[name="instructions"]')?.value ?? '',
-        ingredients: Array.from(document.querySelectorAll('#ingredient-rows tr')).map(tr=>{
-          const nameInput = tr.querySelector('.ingredient-search');
-          const idHidden  = tr.querySelector('input[type="hidden"][name$=".ingredient.id"]');
-          const amount    = tr.querySelector('input[name$=".amount"]');
-          const unitSel   = tr.querySelector('select[name$=".unit.id"]');
-          return {
-            text: nameInput?.value ?? '',
-            id: idHidden?.value ?? '',
-            amount: amount?.value ?? '',
-            unitId: unitSel?.value ?? ''
-          };
-        })
-      };
-      writeDraft(data);
-    }
-
-    const saveNow = debounce(snapshot, 200);
-    form.addEventListener('input', saveNow);
-    window.addEventListener('beforeunload', snapshot);
-
-    form.addEventListener('submit', ()=>{
-      try{ sessionStorage.removeItem('recipe:lastIngredientQuery'); }catch(_){}
-    });
-
-    document.addEventListener('click', (e)=>{
-      const a = e.target.closest('a[href]');
-      if(!a) return;
-      if(a.href.includes('/ingredients/new-ai')) return;
-      try{ sessionStorage.removeItem('recipe:allowRestoreOnce'); }catch(_){}
-    });
-  })();
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
