@@ -59,6 +59,7 @@ public class RecipeService {
         recipe.setFeatured(false);
 
         if (recipeIngredients != null) {
+            recipeIngredients = mergeDuplicateLines(recipeIngredients);
             for (RecipeIngredient recipeIngredient : recipeIngredients) {
                 recipeIngredient.setRecipe(recipe);
             }
@@ -94,17 +95,14 @@ public class RecipeService {
 
                 RecipeIngredient managedChild;
                 if (childId != null) {
-
                     managedChild = existingById.get(childId);
                     if (managedChild == null) {
                         throw new IngredientNotFoundException("Ingredient row not found: id=" + childId);
                     }
-
                     managedChild.setIngredient(ing);
                     managedChild.setUnit(unit);
                     managedChild.setAmount(posted.getAmount());
                 } else {
-
                     managedChild = new RecipeIngredient();
                     managedChild.setRecipe(existingRecipe);
                     managedChild.setIngredient(ing);
@@ -116,17 +114,17 @@ public class RecipeService {
             }
         }
 
+        target = mergeDuplicateLines(target);
+
         existingRecipe.getIngredients().clear();
         existingRecipe.getIngredients().addAll(target);
 
         calculateNutritionFacts(existingRecipe);
 
-
         updateRecipeFields(existingRecipe, recipeDTO, imageFile, email);
 
         return recipeRepository.save(existingRecipe);
     }
-
 
     public Recipe findById(long id) {
         return recipeRepository.findById(id).orElseThrow(() -> new RecipeNotFoundException("Recipe with id " + id + " not found"));
@@ -139,9 +137,10 @@ public class RecipeService {
         List<RecipeIngredient> recipeIngredients = recipeDTO.ingredients();
         for (RecipeIngredient recipeIngredient : recipeIngredients) {
             boolean noIngredient = (recipeIngredient.getIngredient() == null || recipeIngredient.getIngredient().getId() == null);
-            boolean noAmount = (recipeIngredient.getAmount() == null);
+            boolean noUnit       = (recipeIngredient.getUnit() == null || recipeIngredient.getUnit().getId() == null);
+            boolean noAmount     = (recipeIngredient.getAmount() == null);
 
-            if (!noIngredient && !noAmount) {
+            if (!noIngredient && !noUnit && !noAmount) {
                 Unit unit = unitService.findById(recipeIngredient.getUnit().getId());
                 Ingredient ingredient = ingredientService.findById(recipeIngredient.getIngredient().getId());
                 BigDecimal amount = recipeIngredient.getAmount();
@@ -155,9 +154,8 @@ public class RecipeService {
                 normalizeRecipeIngredients.add(newRecipeIngredient);
             }
         }
-        return normalizeRecipeIngredients;
+        return mergeDuplicateLines(normalizeRecipeIngredients);
     }
-
 
     private void updateRecipeFields(Recipe recipe, UpdateRecipeDTO recipeDTO, MultipartFile imageFile, String email) {
         recipe.setDifficulty(recipeDTO.difficulty());
@@ -172,7 +170,7 @@ public class RecipeService {
             recipe.setFeatured(featuredFromDto);
         }
 
-        if (!imageFile.isEmpty()) {
+        if (imageFile != null && !imageFile.isEmpty()) {
             Map<String, String> uploadedData = cloudinaryService.upload(imageFile);
 
             ImageMetaData imageMetaData = new ImageMetaData();
@@ -182,7 +180,6 @@ public class RecipeService {
         }
         recipe.setAuthor(userService.findByEmail(email));
     }
-
 
     public void deleteById(Long id) {
         recipeRepository.deleteById(id);
@@ -269,7 +266,6 @@ public class RecipeService {
         return recipeRepository.save(recipe);
     }
 
-
     @Transactional
     public void calculateNutritionFacts(Recipe recipe) {
         if (recipe == null || recipe.getIngredients() == null || recipe.getIngredients().isEmpty()) {
@@ -300,7 +296,6 @@ public class RecipeService {
             NutritionFact nf = line.getIngredient().getNutritionFact();
             if (nf == null) {
                 skipped++;
-
                 continue;
             }
 
@@ -350,7 +345,6 @@ public class RecipeService {
         return ing == null ? "(null)" : Optional.ofNullable(ing.getName()).orElse("(unnamed)");
     }
 
-
     private Boolean extractFeaturedFlag(Object dto) {
         try {
             var m = dto.getClass().getMethod("featured");
@@ -363,7 +357,6 @@ public class RecipeService {
             if (v instanceof Boolean b) return b;
         } catch (Exception ignored) {}
         try {
-
             var m = dto.getClass().getMethod("getFeatured");
             Object v = m.invoke(dto);
             if (v instanceof Boolean b) return b;
@@ -463,5 +456,28 @@ public class RecipeService {
             return recipeRepository.findAll(pageable);
         }
         return recipeRepository.findBySourceType(sourceType, pageable);
+    }
+
+    private List<RecipeIngredient> mergeDuplicateLines(List<RecipeIngredient> lines) {
+        if (lines == null || lines.isEmpty()) return lines;
+
+        Map<String, RecipeIngredient> byKey = new LinkedHashMap<>();
+        for (RecipeIngredient ri : lines) {
+            if (ri == null) continue;
+            Long ingId  = (ri.getIngredient() != null) ? ri.getIngredient().getId() : null;
+            Long unitId = (ri.getUnit() != null) ? ri.getUnit().getId() : null;
+            if (ingId == null) continue;
+
+            String key = ingId + "|" + (unitId == null ? "" : unitId);
+            RecipeIngredient acc = byKey.get(key);
+            if (acc == null) {
+                byKey.put(key, ri);
+            } else {
+                BigDecimal a1 = Optional.ofNullable(acc.getAmount()).orElse(BigDecimal.ZERO);
+                BigDecimal a2 = Optional.ofNullable(ri.getAmount()).orElse(BigDecimal.ZERO);
+                acc.setAmount(a1.add(a2));
+            }
+        }
+        return new ArrayList<>(byKey.values());
     }
 }
